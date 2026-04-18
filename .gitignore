@@ -1,0 +1,6 @@
+secrets.env
+shell/local.zsh
+.DS_Store
+*.log
+*.bak
+node_modules/
