@@ -4,3 +4,4 @@ shell/local.zsh
 *.log
 *.bak
 node_modules/
+config/tmux/plugins
