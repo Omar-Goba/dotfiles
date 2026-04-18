@@ -1,0 +1,7 @@
+---
+version: 1
+git_protocol: https
+color_labels: disabled
+accessible_colors: disabled
+accessible_prompter: disabled
+spinner: enabled
