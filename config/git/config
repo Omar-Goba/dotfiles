@@ -1,0 +1,66 @@
+[user]
+	name = Omar-Goba
+	email = omaryasserassem1@gmail.com
+
+[core]
+	excludesfile = /Users/omar_yasser/.config/git/ignore
+	editor = nvim
+  compression = 9
+  preloadindex = true
+
+[commit]
+    template = /Users/omar_yasser/.config/git/template
+
+[advice]
+  addEmptyPathspec = false
+  pushNonFastForward = false
+  statusHints = false
+
+[status]
+  branch = true
+  showStash = true
+  showUntrackedFiles = all
+
+[log]
+    abbrevCommit = true  # short commits
+    graphColors = blue,yellow,cyan,magenta,green,red
+
+[diff]
+    context = 3  # less context in diffs
+    renames = copies  # detect copies as renames in diffs
+    interHunkContext = 10  # merge near hunks in diffs
+
+[pager]
+    branch = false  # no need to use pager for git branch
+    diff = diff-so-fancy | $PAGER  # diff-so-fancy as diff pager
+
+[http]
+    postBuffer = 157286400
+
+[init]
+    defaultBranch = main
+
+[push]
+    autoSetupRemote = true
+    default = current
+    followTags = true
+[pull]
+    default = current
+
+[credential]
+	helper = osxkeychain
+
+
+[color "diff"]
+    meta       = black bold
+    frag       = magenta
+    context    = white
+    whitespace = yellow reverse
+
+[color "branch"]
+    current  = magenta
+    local    = default
+    remote   = yellow
+    upstream = green
+    plain    = blue
+

@@ -1,4 +1,4 @@
-secrets.env
+shell/secrets.env
 shell/local.zsh
 .DS_Store
 *.log

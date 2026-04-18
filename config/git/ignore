@@ -1,0 +1,26 @@
+*.parquet
+*.npz
+*.npy
+#*.json
+*.ipynb_checkpoints
+# env/
+venv/
+*.csv
+*.csv~
+*.swp
+*.pyc
+**.DS_Store
+*__pycache__/
+*.bin
+*.vim
+*.zip
+.env
+
+
+# LLM agent CLI ignores
+GEMINI.md
+# AGENTS.md
+.gemini/*
+code_review.md
+
+**/.claude/settings.local.json
