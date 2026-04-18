@@ -45,7 +45,7 @@ function _fzf_compgen_dir() {fd --type=d --hidden --exclude .git . "$1"}
 source "$HOME/dotfiles/vendors/fzf-git/fzf-git.sh"
 
 ### cargo ###
-source $HOME/.cargo/env
+[ -f "$HOME/.cargo/env" ] && source "$HOME/.cargo/env"
 
 ### gcp ###
 source "/opt/homebrew/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.zsh.inc"
