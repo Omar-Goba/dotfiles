@@ -1,0 +1,54 @@
+#osascript -e 'tell app "System Events" to display dialog "Hello World"'
+
+# use `grip` to view md files
+
+# ffmpeg
+#  -i for the input path of the file
+#  -vf "setpts=0.5*PTS" for the 2x speed
+#  -r 24 for the frame rate
+#  -s 1280x720 for the resolution
+
+# stdout is &1, stderr is &2
+#  so to redirect stderr to stdout, use `cmd > file 2>&1` (AT THE END OF THE COMMAND)
+#  or `cmd &> file`
+
+# for some ascii throbber go to `/Users/omar_yasser/Documents/My_Shit/Archives/RND/ASCII_Throbber.json`
+
+# for my latex config check `/Users/omar_yasser/Library/texmf/tex/latex/styles/sty.sty`
+
+# to use curl as a replacement to postman do the following
+#  - `curl -X GET "URL"`
+#  - `curl -X POST "URL" -H "Content-Type: application/json" -d '{}'`
+
+# in vim to increment numbered list go v-block then g then C-a
+
+### To auto launch tmux ###
+#if [ -z "$TMUX" ];then
+	#tmux attach -t aux
+#fi
+
+### to open terminal in full screen ###
+# osascript -e '
+# 	tell app "System Events" to tell process "Terminal"
+# 	set value of attribute "AXFullScreen" of window 1 to true
+# 	end tell
+# '
+
+### my old ascii ###
+#cat << "EOF"
+#
+#                     ,===:'.,            `-._
+#                          `:.`---.__         `-._
+#                            `:.     `--.         `.
+#                              \.        `.         `.
+#                      (,,(,    \.         `.   ____,-`.,
+#                   (,'     `/   \.   ,--.___`.'
+#               ,  ,'  ,--.  `,   \.;'         `
+#                `{D, {    \  :    \;
+#                  V,,'    /  /    //
+#                  j;;    /  ,' ,-//.    ,---.      ,
+#                  \;'   /  ,' /  _  \  /  _  \   ,'/
+#                        \   `'  / \  `'  / \  `.' /
+#                         `.___,'   `.__,'   `.__,'
+#
+#EOF

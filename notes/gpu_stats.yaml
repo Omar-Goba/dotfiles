@@ -1,0 +1,16 @@
+M2:
+  - TFLOPS: 3.6 @ 32-bit
+  - Memory: 8 GB
+  - GPU cores: 8
+  - NPUs: 16
+    - TOPS: 15.7
+
+
+A100:
+  - TFLOPS: 19.5 @ 32-bit
+  - Memory: 40 GB or 80 GB
+  - GPU cores: 3456
+  - NPUs: 512
+    - TOPS: 2496
+
+
