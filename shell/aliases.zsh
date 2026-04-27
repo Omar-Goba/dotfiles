@@ -28,7 +28,7 @@ alias gs="git status --short"
 alias gd="git diff --output-indicator-new=' ' --output-indicator-old=' '"
 alias ga="git add -A"
 alias gc="git commit"
-alias gl="git log --all --graph --pretty=format:'%C(magenta)%h %C(white) %an %ar%C(auto) %D%n%s%n'"
+alias glog="git log --all --graph --pretty=format:'%C(magenta)%h %C(white) %an %ar%C(auto) %D%n%s%n'"
 alias gb="git branch"
 alias gco="git checkout"
 alias gP="git push"
@@ -46,7 +46,8 @@ alias ghpv="gh pr view"
 # Docker shortcuts
 alias d='docker'
 alias dps='docker ps -a --format "table {{.ID}}\t{{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}" | GREP_COLORS="ms=01;34" grep -E --color=always "^|CONTAINER ID|NAMES|IMAGE|STATUS|PORTS" | less -R'
-alias di='docker images'
+alias di='docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.CreatedSince}}\t{{.Size}}" | GREP_COLORS="ms=01;34" grep -E --color=always "^|REPOSITORY|TAG|IMAGE ID|CREATED|SIZE" | less -R'
+alias dis='docker system df | GREP_COLORS="ms=01;34" grep -E --color=always "^|TYPE|Images" | less -R'
 alias dex='docker exec -it'
 alias dlog='docker logs'
 alias drm='docker rm -f'
@@ -65,4 +66,3 @@ alias n="nvim"
 alias py="python3 -q"
 alias fast="speedtest-cli --secure"
 alias shit="cmatrix -u 9"
-
