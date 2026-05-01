@@ -178,6 +178,7 @@ function c() {
 
 # Requires: pdflatex, optionally bibtex and open (macOS).
 # Compile a LaTeX file using pdflatex and optionally open the resulting PDF.
+# If a ./pdfs directory exists, output goes there; otherwise it stays in the current directory.
 # Usage: tx [-v] [-b] [-c] <filename>
 # -v: Verbose mode; opens the PDF after successful compilation.
 # -b: Run bibtex after the first pdflatex pass.
@@ -190,6 +191,8 @@ function tx() {
   local recursive_clean=0
   local tex_file
   local pdf_file
+  local out_dir="."
+  local base_name
 
   # Parse options.
   while getopts "vbc" opt; do
@@ -209,6 +212,12 @@ function tx() {
     return 1
   fi
   tex_file="$1"
+  base_name="${tex_file##*/}"
+  base_name="${base_name%.tex}"
+
+  # Match mdpdf output behavior.
+  [[ -d "pdfs" ]] && out_dir="pdfs"
+  pdf_file="${out_dir}/${base_name}.pdf"
 
   # Check if the file exists and is readable.
   if [[ ! -f "$tex_file" || ! -r "$tex_file" ]]; then
@@ -223,14 +232,14 @@ function tx() {
   fi
 
   # First pdflatex pass.
-  if ! pdflatex "$tex_file"; then
+  if ! pdflatex -output-directory="$out_dir" "$tex_file"; then
     echo "Error: Failed to compile '$tex_file' with pdflatex."
     return 1
   fi
 
   # Run bibtex if requested.
   if [[ $run_bibtex -eq 1 ]]; then
-    local aux_file="${tex_file%.tex}.aux"
+    local aux_file="${out_dir}/${base_name}.aux"
     if [[ ! -f "$aux_file" ]]; then
       echo "Error: AUX file ('$aux_file') not found; cannot run bibtex."
       # Optionally, you might want to proceed without bibtex or make this a softer warning.
@@ -241,20 +250,20 @@ function tx() {
         echo "Error: bibtex is not installed."
         return 1 # Bibtex requested but not found
       fi
-      echo "Running bibtex on ${tex_file%.tex}..."
-      if ! bibtex "${tex_file%.tex}"; then
+      echo "Running bibtex on ${out_dir}/${base_name}..."
+      if ! bibtex "${out_dir}/${base_name}"; then
         echo "Error: bibtex command failed."
         # Decide if this is a fatal error for the script
         # return 1
       fi
       # Recompile twice after bibtex to resolve references.
       echo "Recompiling with pdflatex (1st pass after bibtex)..."
-      if ! pdflatex "$tex_file"; then
+      if ! pdflatex -output-directory="$out_dir" "$tex_file"; then
         echo "Error: Failed to compile '$tex_file' (1st pass after bibtex)."
         return 1
       fi
       echo "Recompiling with pdflatex (2nd pass after bibtex)..."
-      if ! pdflatex "$tex_file"; then
+      if ! pdflatex -output-directory="$out_dir" "$tex_file"; then
         echo "Error: Failed to compile '$tex_file' (2nd pass after bibtex)."
         return 1
       fi
@@ -284,9 +293,6 @@ function tx() {
     \rm -f *.{aux,log,out,bbl,blg,toc,lof,lot,fls,fdb_latexmk,synctex.gz,nav,snm}
     unsetopt nullglob
   fi
-
-  # Determine the PDF filename.
-  pdf_file="${tex_file%.tex}.pdf"
 
   # Open the PDF if verbose mode is enabled and the PDF exists.
   if [[ $verbose -eq 1 ]]; then
@@ -447,6 +453,7 @@ activ() {
     fi
 }
 
+unalias gl 2>/dev/null
 function gl() {
-    git log --all --graph --pretty=format:'%C(magenta)%h %C(white) %an %ar%C(auto) %D%n%s%n' | less -R +/HEAD
+    git log --all --graph --color=always --pretty=format:'%C(magenta)%h %C(white) %an %ar%C(auto) %D%n%s%n' | less -R +/HEAD
 }
