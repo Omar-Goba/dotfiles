@@ -25,7 +25,6 @@ return {
 		"hrsh7th/nvim-cmp", -- Optional: For using slash commands and variables in the chat buffer
 		"nvim-telescope/telescope.nvim", -- Optional: For using slash commands
 		"jellydn/spinner.nvim", -- Show loading spinner when request is started
-		{ "stevearc/dressing.nvim", opts = {} }, -- Optional: Improves the default Neovim UI
 	},
 	config = function(_, options)
 		require("codecompanion").setup(options)
