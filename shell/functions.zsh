@@ -291,6 +291,7 @@ function tx() {
   else
     setopt localoptions nullglob # Make nullglob local to the function call if in zsh
     \rm -f *.{aux,log,out,bbl,blg,toc,lof,lot,fls,fdb_latexmk,synctex.gz,nav,snm}
+    \rm -f "${out_dir}"/*.{aux,log,out,bbl,blg,toc,lof,lot,fls,fdb_latexmk,synctex.gz,nav,snm}
     unsetopt nullglob
   fi
 
