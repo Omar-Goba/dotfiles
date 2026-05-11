@@ -384,7 +384,7 @@ function mdpdf() {
   out_file="${out_dir}/${out_name}"
 
   # Run pandoc
-  if ! pandoc "$md_file" --pdf-engine=xelatex -o "$out_file"; then
+  if ! pandoc "$md_file" --filter mermaid-filter --pdf-engine=xelatex -o "$out_file"; then
     echo "Error: Failed to convert '$md_file' to PDF."
     return 1
   fi
