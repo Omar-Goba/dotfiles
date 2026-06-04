@@ -458,3 +458,336 @@ unalias gl 2>/dev/null
 function gl() {
     git log --all --graph --color=always --pretty=format:'%C(magenta)%h %C(white) %an %ar%C(auto) %D%n%s%n' | less -R +/HEAD
 }
+
+# Function: gwl
+# Description:
+#   Pretty prints `git worktree list` by parsing porcelain output.
+#   Shows current marker, shortened path, branch, short HEAD, state, and
+#   disk usage for each worktree.
+#   Long path/branch values are truncated to keep rows on one line.
+#
+# Usage:
+#   gwl [--plain] [--disk]
+#   --plain: disable color output for scripting/piping.
+#   --disk: show per-worktree disk usage column.
+function gwl() {
+  local plain=0
+  local show_disk=0
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --plain) plain=1 ;;
+      --disk) show_disk=1 ;;
+      *)
+        echo "Usage: gwl [--plain] [--disk]" >&2
+        return 1
+        ;;
+    esac
+    shift
+  done
+
+  local wt_path=""
+  local wt_head=""
+  local wt_branch=""
+  local wt_locked=""
+  local wt_prunable=""
+  local current_root
+  local path_w=52
+  local branch_w=30
+  local head_w=7
+  local state_w=16
+  local disk_w=8
+
+  if (( COLUMNS > 0 && COLUMNS < 120 )); then
+    path_w=34
+    branch_w=20
+  fi
+
+  if ! current_root="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+    echo "Error: Not inside a git repository/worktree." >&2
+    return 1
+  fi
+
+  local c_reset="" c_dim="" c_green="" c_red="" c_yellow="" c_blue="" c_magenta="" c_cyan=""
+  if [[ $plain -eq 0 ]]; then
+    c_reset=$'\033[0m'
+    c_dim=$'\033[2m'
+    c_green=$'\033[1;32m'
+    c_red=$'\033[1;31m'
+    c_yellow=$'\033[1;33m'
+    c_blue=$'\033[1;36m'
+    c_magenta=$'\033[1;35m'
+    c_cyan=$'\033[1;96m'
+  fi
+
+  _gwl_trunc_end() {
+    local text="$1"
+    local width="$2"
+    if (( ${#text} <= width )); then
+      print -r -- "$text"
+      return
+    fi
+    if (( width <= 3 )); then
+      print -r -- "${text[1,$width]}"
+      return
+    fi
+    print -r -- "${text[1,$((width-3))]}..."
+  }
+
+  _gwl_trunc_mid() {
+    local text="$1"
+    local width="$2"
+    local len=${#text}
+
+    if (( len <= width )); then
+      print -r -- "$text"
+      return
+    fi
+    if (( width <= 5 )); then
+      print -r -- "${text[1,$width]}"
+      return
+    fi
+
+    local left=$(( (width - 3) / 2 ))
+    local right=$(( width - 3 - left ))
+    print -r -- "${text[1,$left]}...${text[$((len-right+1)),$len]}"
+  }
+
+  _gwl_trunc_path_keep_leaf() {
+    local path_text="$1"
+    local width="$2"
+    local len=${#path_text}
+
+    if (( len <= width )); then
+      print -r -- "$path_text"
+      return
+    fi
+
+    local leaf="${path_text##*/}"
+    local leaf_len=${#leaf}
+
+    if (( leaf_len + 4 >= width )); then
+      print -r -- "$(_gwl_trunc_end "$path_text" "$width")"
+      return
+    fi
+
+    local keep_prefix=$(( width - leaf_len - 4 ))
+    local prefix="${path_text[1,$keep_prefix]}"
+    print -r -- "${prefix}.../${leaf}"
+  }
+
+  _gwl_print_row() {
+    local row_path="$1"
+    local row_head="$2"
+    local row_branch_ref="$3"
+    local row_locked="$4"
+    local row_prunable="$5"
+
+    # Ignore hidden git-dir pseudo entry used by the `._repo` layout.
+    [[ "$row_path" == */._repo ]] && return 0
+
+    local marker=" "
+    [[ "$row_path" == "$current_root" ]] && marker="*"
+
+    local branch_display="detached"
+    [[ -n "$row_branch_ref" ]] && branch_display="${row_branch_ref#refs/heads/}"
+
+    local head_short="${row_head[1,7]}"
+    local state_text="clean"
+    if [[ -n "$(git -C "$row_path" status --porcelain 2>/dev/null)" ]]; then
+      state_text="dirty"
+    fi
+    [[ -n "$row_locked" ]] && state_text+=" locked"
+    [[ -n "$row_prunable" ]] && state_text+=" prunable"
+
+    local path_display="${row_path/#$HOME/~}"
+    path_display="$(_gwl_trunc_path_keep_leaf "$path_display" "$path_w")"
+    branch_display="$(_gwl_trunc_end "$branch_display" "$branch_w")"
+    state_text="$(_gwl_trunc_end "$state_text" "$state_w")"
+
+    local disk_display=""
+    if [[ $show_disk -eq 1 ]]; then
+      disk_display="-"
+      if command -v du >/dev/null 2>&1; then
+        disk_display="$(du -sh "$row_path" 2>/dev/null | awk '{print $1}')"
+        [[ -z "$disk_display" ]] && disk_display="-"
+      fi
+      disk_display="$(_gwl_trunc_end "$disk_display" "$disk_w")"
+    fi
+
+    local state_color="$c_green"
+    [[ "$state_text" == *dirty* ]] && state_color="$c_red"
+    [[ "$state_text" == *prunable* ]] && state_color="$c_yellow"
+
+    if [[ $show_disk -eq 1 ]]; then
+      printf "%b%-2s %-${path_w}s %b%-${branch_w}s%b %b%-${head_w}s%b %b%-${state_w}s%b %b%-${disk_w}s%b\n" \
+        "$c_dim" "$marker" "$path_display" \
+        "$c_blue" "$branch_display" "$c_reset" \
+        "$c_magenta" "$head_short" "$c_reset" \
+        "$state_color" "$state_text" "$c_reset" \
+        "$c_cyan" "$disk_display" "$c_reset"
+    else
+      printf "%b%-2s %-${path_w}s %b%-${branch_w}s%b %b%-${head_w}s%b %b%-${state_w}s%b\n" \
+        "$c_dim" "$marker" "$path_display" \
+        "$c_blue" "$branch_display" "$c_reset" \
+        "$c_magenta" "$head_short" "$c_reset" \
+        "$state_color" "$state_text" "$c_reset"
+    fi
+  }
+
+  if [[ $show_disk -eq 1 ]]; then
+    printf "%b%-2s %-${path_w}s %-${branch_w}s %-${head_w}s %-${state_w}s %-${disk_w}s%b\n" \
+      "$c_dim" "" "PATH" "BRANCH" "HEAD" "STATE" "DISK" "$c_reset"
+  else
+    printf "%b%-2s %-${path_w}s %-${branch_w}s %-${head_w}s %-${state_w}s%b\n" \
+      "$c_dim" "" "PATH" "BRANCH" "HEAD" "STATE" "$c_reset"
+  fi
+
+  local line
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    if [[ "$line" == worktree\ * ]]; then
+      if [[ -n "$wt_path" ]]; then
+        _gwl_print_row "$wt_path" "$wt_head" "$wt_branch" "$wt_locked" "$wt_prunable"
+      fi
+
+      wt_path="${line#worktree }"
+      wt_head=""
+      wt_branch=""
+      wt_locked=""
+      wt_prunable=""
+    elif [[ "$line" == HEAD\ * ]]; then
+      wt_head="${line#HEAD }"
+    elif [[ "$line" == branch\ * ]]; then
+      wt_branch="${line#branch }"
+    elif [[ "$line" == locked* ]]; then
+      wt_locked=1
+    elif [[ "$line" == prunable* ]]; then
+      wt_prunable=1
+    fi
+  done < <(git worktree list --porcelain)
+
+  if [[ -n "$wt_path" ]]; then
+    _gwl_print_row "$wt_path" "$wt_head" "$wt_branch" "$wt_locked" "$wt_prunable"
+  fi
+}
+
+# Function: gwcd
+# Description:
+#   Interactive worktree switcher using fzf. Select a worktree and change
+#   directory into it.
+#
+# Usage:
+#   gwcd
+#
+# Requires:
+#   - fzf
+function gwcd() {
+  if ! command -v fzf >/dev/null 2>&1; then
+    echo "Error: fzf is not installed." >&2
+    return 1
+  fi
+
+  local current_root
+  if ! current_root="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+    echo "Error: Not inside a git repository/worktree." >&2
+    return 1
+  fi
+
+  local rows=""
+  local wt_path=""
+  local wt_head=""
+  local wt_branch=""
+  local wt_locked=""
+  local wt_prunable=""
+  local line
+
+  _gwcd_trunc_end() {
+    local text="$1"
+    local width="$2"
+    if (( ${#text} <= width )); then
+      print -r -- "$text"
+      return
+    fi
+    if (( width <= 3 )); then
+      print -r -- "${text[1,$width]}"
+      return
+    fi
+    print -r -- "${text[1,$((width-3))]}..."
+  }
+
+  _gwcd_append_row() {
+    local row_path="$1"
+    local row_head="$2"
+    local row_branch_ref="$3"
+    local row_locked="$4"
+    local row_prunable="$5"
+
+    [[ "$row_path" == */._repo ]] && return 0
+
+    local marker=" "
+    [[ "$row_path" == "$current_root" ]] && marker="*"
+
+    local branch_display="detached"
+    [[ -n "$row_branch_ref" ]] && branch_display="${row_branch_ref#refs/heads/}"
+
+    local head_short="${row_head[1,7]}"
+    local state_text="clean"
+    if [[ -n "$(git -C "$row_path" status --porcelain 2>/dev/null)" ]]; then
+      state_text="dirty"
+    fi
+    [[ -n "$row_locked" ]] && state_text+=" locked"
+    [[ -n "$row_prunable" ]] && state_text+=" prunable"
+
+    local path_display="${row_path/#$HOME/~}"
+    local dir_display="${row_path##*/}"
+    local branch_short
+    local path_short
+
+    branch_short="$(_gwcd_trunc_end "$branch_display" 56)"
+    path_short="$(_gwcd_trunc_end "$path_display" 64)"
+
+    rows+="$row_path"$'\t'"$branch_short"$'\t'"$dir_display"$'\t'"$path_short"$'\t'"$state_text"$'\t'"$head_short"$'\n'
+  }
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    if [[ "$line" == worktree\ * ]]; then
+      if [[ -n "$wt_path" ]]; then
+        _gwcd_append_row "$wt_path" "$wt_head" "$wt_branch" "$wt_locked" "$wt_prunable"
+      fi
+      wt_path="${line#worktree }"
+      wt_head=""
+      wt_branch=""
+      wt_locked=""
+      wt_prunable=""
+    elif [[ "$line" == HEAD\ * ]]; then
+      wt_head="${line#HEAD }"
+    elif [[ "$line" == branch\ * ]]; then
+      wt_branch="${line#branch }"
+    elif [[ "$line" == locked* ]]; then
+      wt_locked=1
+    elif [[ "$line" == prunable* ]]; then
+      wt_prunable=1
+    fi
+  done < <(git worktree list --porcelain)
+
+  if [[ -n "$wt_path" ]]; then
+    _gwcd_append_row "$wt_path" "$wt_head" "$wt_branch" "$wt_locked" "$wt_prunable"
+  fi
+
+  local selected
+  selected="$(print -r -- "$rows" | fzf --height=45% --reverse --prompt='worktree> ' --delimiter=$'\t' --with-nth=2,3,5,6,4 --nth=2,3,4 --header=$'  BRANCH\tDIR\tSTATE\tHEAD\tPATH')"
+  [[ -z "$selected" ]] && return 0
+
+  local target
+  target="$(print -r -- "$selected" | cut -f1)"
+
+  if [[ -d "$target" ]]; then
+    cd "$target" || return 1
+    if whence advanced_ls >/dev/null 2>&1; then
+      advanced_ls
+    fi
+  else
+    echo "Error: selected path does not exist: $target" >&2
+    return 1
+  fi
+}
