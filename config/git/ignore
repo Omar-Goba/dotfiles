@@ -22,5 +22,6 @@ GEMINI.md
 # AGENTS.md
 .gemini/*
 code_review.md
+.opencode/*
 
 **/.claude/settings.local.json
