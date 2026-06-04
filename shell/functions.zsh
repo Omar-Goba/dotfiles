@@ -492,6 +492,7 @@ function gwl() {
   local wt_locked=""
   local wt_prunable=""
   local current_root
+  local worktree_list
   local path_w=52
   local branch_w=30
   local head_w=7
@@ -503,7 +504,9 @@ function gwl() {
     branch_w=20
   fi
 
-  if ! current_root="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+  current_root="$(git rev-parse --show-toplevel 2>/dev/null)" || current_root=""
+
+  if ! worktree_list="$(git worktree list --porcelain 2>/dev/null)"; then
     echo "Error: Not inside a git repository/worktree." >&2
     return 1
   fi
@@ -594,7 +597,7 @@ function gwl() {
 
     local head_short="${row_head[1,7]}"
     local state_text="clean"
-    if [[ -n "$(git -C "$row_path" status --porcelain 2>/dev/null)" ]]; then
+    if [[ -n "$(git --git-dir="$row_path/.git" --work-tree="$row_path" status --porcelain 2>/dev/null)" ]]; then
       state_text="dirty"
     fi
     [[ -n "$row_locked" ]] && state_text+=" locked"
@@ -664,7 +667,7 @@ function gwl() {
     elif [[ "$line" == prunable* ]]; then
       wt_prunable=1
     fi
-  done < <(git worktree list --porcelain)
+  done <<< "$worktree_list"
 
   if [[ -n "$wt_path" ]]; then
     _gwl_print_row "$wt_path" "$wt_head" "$wt_branch" "$wt_locked" "$wt_prunable"
@@ -688,7 +691,10 @@ function gwcd() {
   fi
 
   local current_root
-  if ! current_root="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+  local worktree_list
+  current_root="$(git rev-parse --show-toplevel 2>/dev/null)" || current_root=""
+
+  if ! worktree_list="$(git worktree list --porcelain 2>/dev/null)"; then
     echo "Error: Not inside a git repository/worktree." >&2
     return 1
   fi
@@ -732,7 +738,7 @@ function gwcd() {
 
     local head_short="${row_head[1,7]}"
     local state_text="clean"
-    if [[ -n "$(git -C "$row_path" status --porcelain 2>/dev/null)" ]]; then
+    if [[ -n "$(git --git-dir="$row_path/.git" --work-tree="$row_path" status --porcelain 2>/dev/null)" ]]; then
       state_text="dirty"
     fi
     [[ -n "$row_locked" ]] && state_text+=" locked"
@@ -768,7 +774,7 @@ function gwcd() {
     elif [[ "$line" == prunable* ]]; then
       wt_prunable=1
     fi
-  done < <(git worktree list --porcelain)
+  done <<< "$worktree_list"
 
   if [[ -n "$wt_path" ]]; then
     _gwcd_append_row "$wt_path" "$wt_head" "$wt_branch" "$wt_locked" "$wt_prunable"
