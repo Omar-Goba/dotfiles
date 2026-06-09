@@ -901,3 +901,431 @@ function gwcd() {
     return 1
   fi
 }
+
+## Worktree Management ##
+
+# Function: gwn
+# Description:
+#   Create a new git worktree at a sibling path, optionally checking out an
+#   existing branch or creating a new one. Changes into the new worktree.
+#
+# Usage:
+#   gwn <branch> [path]
+#
+# Requires: git
+function gwn() {
+  if [[ -z "$1" ]]; then
+    echo "Usage: gwn <branch> [path]" >&2
+    return 1
+  fi
+
+  local branch="$1"
+  local repo_root
+  repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || {
+    echo "Error: Not inside a git repository." >&2
+    return 1
+  }
+
+  local wt_path="${2:-${repo_root%/*}/${branch}}"
+
+  if git rev-parse --verify "$branch" >/dev/null 2>&1; then
+    git worktree add "$wt_path" "$branch" || return 1
+  else
+    git worktree add -b "$branch" "$wt_path" || return 1
+  fi
+
+  echo "Created worktree: $wt_path ($branch)"
+  cd "$wt_path" || return 1
+  if whence advanced_ls >/dev/null 2>&1; then
+    advanced_ls
+  fi
+}
+
+# Function: gwa
+# Description:
+#   Create a new git worktree and launch an AI coding agent in a new tmux
+#   window (or session) named after the branch.
+#
+# Usage:
+#   gwa <branch> [cl|cx|oc] [path]
+#
+# Requires: git, tmux
+function gwa() {
+  if [[ -z "$1" ]]; then
+    echo "Usage: gwa <branch> [cl|cx|oc] [path]" >&2
+    return 1
+  fi
+
+  local branch="$1"
+  local agent="${2:-cl}"
+  local override_path="$3"
+
+  case "$agent" in
+    cl|cx|oc) ;;
+    *)
+      echo "Error: Unknown agent '$agent'. Choose: cl, cx, oc." >&2
+      return 1
+      ;;
+  esac
+
+  if ! command -v tmux >/dev/null 2>&1; then
+    echo "Error: tmux is not installed." >&2
+    return 1
+  fi
+
+  local repo_root
+  repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || {
+    echo "Error: Not inside a git repository." >&2
+    return 1
+  }
+
+  local wt_path="${override_path:-${repo_root%/*}/${branch}}"
+
+  if git rev-parse --verify "$branch" >/dev/null 2>&1; then
+    git worktree add "$wt_path" "$branch" || return 1
+  else
+    git worktree add -b "$branch" "$wt_path" || return 1
+  fi
+
+  echo "Created worktree: $wt_path ($branch)"
+
+  local session_name="${branch//\//-}"
+
+  if [[ -n "$TMUX" ]]; then
+    tmux new-window -n "$session_name" -c "$wt_path"
+    tmux send-keys -t "$session_name" "$agent" Enter
+    echo "Opened tmux window '$session_name' with '$agent'."
+  else
+    tmux new-session -d -s "$session_name" -c "$wt_path"
+    tmux send-keys -t "$session_name" "$agent" Enter
+    tmux attach-session -t "=$session_name"
+  fi
+}
+
+# Function: gwrm
+# Description:
+#   Interactively select a non-main worktree with fzf and remove it.
+#   Optionally deletes the branch too.
+#
+# Usage:
+#   gwrm [--force] [--branch]
+#
+# Requires: git, fzf
+function gwrm() {
+  local force=0
+  local delete_branch=0
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --force|-f) force=1 ;;
+      --branch|-b) delete_branch=1 ;;
+      *)
+        echo "Usage: gwrm [--force] [--branch]" >&2
+        return 1
+        ;;
+    esac
+    shift
+  done
+
+  if ! command -v fzf >/dev/null 2>&1; then
+    echo "Error: fzf is not installed." >&2
+    return 1
+  fi
+
+  local worktree_list
+  if ! worktree_list="$(git worktree list --porcelain 2>/dev/null)"; then
+    echo "Error: Not inside a git repository/worktree." >&2
+    return 1
+  fi
+
+  local main_path
+  main_path="$(awk '/^worktree /{print substr($0,10); exit}' <<< "$worktree_list")"
+
+  local rows="" wt_path="" wt_head="" wt_branch="" line
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    if [[ "$line" == worktree\ * ]]; then
+      if [[ -n "$wt_path" && "$wt_path" != */._repo && "$wt_path" != "$main_path" ]]; then
+        local bd="${wt_branch#refs/heads/}"
+        [[ -z "$bd" ]] && bd="detached"
+        rows+="$wt_path"$'\t'"$bd"$'\t'"${wt_head[1,7]}"$'\t'"${wt_path/#$HOME/~}"$'\n'
+      fi
+      wt_path="${line#worktree }"
+      wt_head="" wt_branch=""
+    elif [[ "$line" == HEAD\ * ]];   then wt_head="${line#HEAD }"
+    elif [[ "$line" == branch\ * ]]; then wt_branch="${line#branch }"
+    fi
+  done <<< "$worktree_list"
+
+  if [[ -n "$wt_path" && "$wt_path" != */._repo && "$wt_path" != "$main_path" ]]; then
+    local bd="${wt_branch#refs/heads/}"
+    [[ -z "$bd" ]] && bd="detached"
+    rows+="$wt_path"$'\t'"$bd"$'\t'"${wt_head[1,7]}"$'\t'"${wt_path/#$HOME/~}"$'\n'
+  fi
+
+  if [[ -z "$rows" ]]; then
+    echo "No removable worktrees found." >&2
+    return 0
+  fi
+
+  local selected
+  selected="$(print -r -- "${rows%$'\n'}" | fzf --height=45% --reverse \
+    --prompt='remove worktree> ' \
+    --delimiter=$'\t' --with-nth=2,4,3 \
+    --header=$'  BRANCH\tPATH\tHEAD')"
+  [[ -z "$selected" ]] && return 0
+
+  local target_path target_branch
+  target_path="$(cut -f1 <<< "$selected")"
+  target_branch="$(cut -f2 <<< "$selected")"
+
+  if (( !force )); then
+    echo -n "Remove worktree '$target_path' ($target_branch)? [y/N] "
+    read -rk1 reply; echo
+    [[ "$reply" != [yY] ]] && { echo "Aborted."; return 0; }
+  fi
+
+  local rm_args=()
+  (( force )) && rm_args+=(--force)
+
+  if ! git worktree remove "${rm_args[@]}" "$target_path"; then
+    echo "Error: Remove failed. Use --force if the worktree has uncommitted changes." >&2
+    return 1
+  fi
+
+  git worktree prune 2>/dev/null
+
+  if (( delete_branch )) && [[ "$target_branch" != "detached" ]]; then
+    if ! git branch -d "$target_branch" 2>/dev/null; then
+      if (( force )); then
+        git branch -D "$target_branch" && echo "Force-deleted branch: $target_branch"
+      else
+        echo "Note: Branch '$target_branch' not deleted (unmerged). Use --force to force-delete."
+      fi
+    else
+      echo "Deleted branch: $target_branch"
+    fi
+  fi
+}
+
+## tmux Sessionizer ##
+
+# Function: mux
+# Description:
+#   fzf over zoxide history and common project dirs. Attach-or-create a tmux
+#   session named after the selected directory.
+#
+# Usage:
+#   mux [query]
+#
+# Requires: tmux, fzf. Optional: zoxide (for ranked results).
+function mux() {
+  if ! command -v tmux >/dev/null 2>&1; then
+    echo "Error: tmux is not installed." >&2
+    return 1
+  fi
+  if ! command -v fzf >/dev/null 2>&1; then
+    echo "Error: fzf is not installed." >&2
+    return 1
+  fi
+
+  local candidates=""
+
+  if command -v zoxide >/dev/null 2>&1; then
+    candidates="$(zoxide query -l 2>/dev/null)"
+  fi
+
+  for base in "$HOME" "$HOME/dev" "$HOME/projects" "$HOME/work" "$HOME/code"; do
+    [[ -d "$base" ]] && candidates+=$'\n'"$(find "$base" -maxdepth 1 -mindepth 1 -type d 2>/dev/null)"
+  done
+
+  local selected
+  selected="$(print -r -- "$candidates" | sort -u | grep -v '^$' | sed "s|$HOME|~|g" | \
+    fzf --height=45% --reverse --prompt='session> ' --query="${1:-}" \
+        --preview="ls \"\$(echo {} | sed 's|~|$HOME|g')\" 2>/dev/null | head -20")"
+
+  [[ -z "$selected" ]] && return 0
+  selected="${selected/#\~/$HOME}"
+
+  local session_name
+  session_name="$(basename "$selected" | tr '.:/ ' '____')"
+
+  if [[ -z "$TMUX" ]]; then
+    tmux new-session -A -s "$session_name" -c "$selected"
+  else
+    if tmux has-session -t "=$session_name" 2>/dev/null; then
+      tmux switch-client -t "=$session_name"
+    else
+      tmux new-session -d -s "$session_name" -c "$selected"
+      tmux switch-client -t "=$session_name"
+    fi
+  fi
+}
+
+## Docker fzf Pickers ##
+
+# _dpick: Internal fzf picker for Docker containers.
+# Returns the selected container name on stdout.
+function _dpick() {
+  local prompt="${1:-container> }"
+  if ! command -v fzf >/dev/null 2>&1; then
+    echo "Error: fzf is not installed." >&2
+    return 1
+  fi
+  docker ps -a --format '{{.Names}}\t{{.Image}}\t{{.Status}}' 2>/dev/null | \
+    fzf --height=45% --reverse --prompt="$prompt" \
+        --delimiter=$'\t' --with-nth=1,2,3 \
+        --header=$'  NAME\tIMAGE\tSTATUS' | \
+    cut -f1
+}
+
+# dex: docker exec -it, with fzf picker when called with no arguments.
+# Usage: dex [container] [command]
+unalias dex 2>/dev/null
+function dex() {
+  if [[ $# -eq 0 ]]; then
+    local cid="$(_dpick 'exec> ')"
+    [[ -z "$cid" ]] && return 0
+    docker exec -it "$cid" /bin/bash
+  else
+    docker exec -it "$@"
+  fi
+}
+
+# dlog: docker logs -f, with fzf picker when called with no arguments.
+# Usage: dlog [container] [docker-logs-flags...]
+unalias dlog 2>/dev/null
+function dlog() {
+  if [[ $# -eq 0 ]]; then
+    local cid="$(_dpick 'logs> ')"
+    [[ -z "$cid" ]] && return 0
+    docker logs -f "$cid"
+  else
+    docker logs "$@"
+  fi
+}
+
+# drm: docker rm -f, with fzf picker (multi-select) when called with no arguments.
+# Usage: drm [container...]
+unalias drm 2>/dev/null
+function drm() {
+  if [[ $# -eq 0 ]]; then
+    local cids
+    cids="$(docker ps -a --format '{{.Names}}\t{{.Image}}\t{{.Status}}' 2>/dev/null | \
+      fzf --height=45% --reverse --prompt='remove> ' --multi \
+          --delimiter=$'\t' --with-nth=1,2,3 \
+          --header=$'  NAME\tIMAGE\tSTATUS' | cut -f1)"
+    [[ -z "$cids" ]] && return 0
+    print -r -- "$cids" | xargs docker rm -f
+  else
+    docker rm -f "$@"
+  fi
+}
+
+## Process Killer ##
+
+# fkill: Interactively select one or more processes with fzf and kill them.
+# Usage: fkill [-9]
+# -9: send SIGKILL instead of SIGTERM
+function fkill() {
+  if ! command -v fzf >/dev/null 2>&1; then
+    echo "Error: fzf is not installed." >&2
+    return 1
+  fi
+
+  local signal="15"
+  [[ "$1" == "-9" ]] && signal="9"
+
+  local selected
+  selected="$(ps -eo pid,user,pcpu,pmem,comm --sort=-pcpu 2>/dev/null | tail -n +2 | \
+    fzf --height=50% --reverse --prompt='kill> ' --multi \
+        --header='  PID   USER  %CPU %MEM  COMMAND')"
+
+  [[ -z "$selected" ]] && return 0
+
+  print -r -- "$selected" | awk '{print $1}' | while read -r pid; do
+    if kill "-$signal" "$pid" 2>/dev/null; then
+      echo "Killed PID $pid (SIG${signal})"
+    else
+      echo "Error: Failed to kill PID $pid" >&2
+    fi
+  done
+}
+
+## Small QoL ##
+
+# extract: Decompress an archive file, auto-detecting format.
+# Usage: extract <file>
+function extract() {
+  if [[ -z "$1" ]]; then
+    echo "Usage: extract <file>" >&2
+    return 1
+  fi
+  if [[ ! -f "$1" ]]; then
+    echo "Error: '$1' is not a file." >&2
+    return 1
+  fi
+
+  case "$1" in
+    *.tar.gz|*.tgz)    tar -xzf "$1"            ;;
+    *.tar.bz2|*.tbz2)  tar -xjf "$1"            ;;
+    *.tar.xz|*.txz)    tar -xJf "$1"            ;;
+    *.tar.zst)         tar --zstd -xf "$1"      ;;
+    *.tar)             tar -xf "$1"              ;;
+    *.gz)              gunzip "$1"               ;;
+    *.bz2)             bunzip2 "$1"              ;;
+    *.xz)              unxz "$1"                 ;;
+    *.zip)             unzip "$1"                ;;
+    *.7z)              7z x "$1"                 ;;
+    *.rar)             unrar x "$1"              ;;
+    *.zst)             zstd -d "$1"              ;;
+    *)
+      echo "Error: Unsupported format '${1##*.}'." >&2
+      return 1
+      ;;
+  esac
+}
+
+# mkcd: Create a directory (including parents) and change into it.
+# Usage: mkcd <dir>
+function mkcd() {
+  if [[ -z "$1" ]]; then
+    echo "Usage: mkcd <dir>" >&2
+    return 1
+  fi
+  mkdir -p "$1" && cd "$1" || return 1
+}
+
+## Discoverability ##
+
+# funcs: List all custom shell functions with their Usage lines.
+# Usage: funcs [pattern]
+function funcs() {
+  local pattern="${1:-}"
+  local shell_dir="$HOME/dotfiles/shell"
+
+  if [[ ! -d "$shell_dir" ]]; then
+    echo "Error: '$shell_dir' not found." >&2
+    return 1
+  fi
+
+  awk '
+    /^function [a-zA-Z_][a-zA-Z0-9_-]*\(\)/ {
+      split($2, a, "("); fname = a[1]; usage = ""
+    }
+    fname && /# Usage:/ {
+      sub(/.*# Usage:[[:space:]]*/, "")
+      if (length($0) > 0) {
+        printf "  %-22s %s\n", fname, $0
+        fname = ""
+      } else {
+        getline; sub(/^#[[:space:]]*/, "")
+        printf "  %-22s %s\n", fname, $0
+        fname = ""
+      }
+    }
+    fname && /^[^#[:space:]]/ { fname = "" }
+  ' "$shell_dir"/*.zsh 2>/dev/null | \
+    { [[ -n "$pattern" ]] && grep -i "$pattern" || cat; } | \
+    sort
+}

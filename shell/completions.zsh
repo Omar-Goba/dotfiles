@@ -20,3 +20,27 @@ function _mdpdf() {
 
 compdef _tx tx
 compdef _mdpdf mdpdf
+
+function _gwn() {
+  _arguments \
+    '1:branch:->branch' \
+    '2:path:_directories'
+  if [[ $state == branch ]]; then
+    local branches=($(git branch --format='%(refname:short)' 2>/dev/null))
+    _describe 'branches' branches
+  fi
+}
+
+function _gwa() {
+  _arguments \
+    '1:branch:->branch' \
+    '2:agent:(cl cx oc)' \
+    '3:path:_directories'
+  if [[ $state == branch ]]; then
+    local branches=($(git branch --format='%(refname:short)' 2>/dev/null))
+    _describe 'branches' branches
+  fi
+}
+
+compdef _gwn gwn
+compdef _gwa gwa

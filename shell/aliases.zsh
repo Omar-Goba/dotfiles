@@ -48,9 +48,6 @@ alias d='docker'
 alias dps='docker ps -a --format "table {{.ID}}\t{{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}" | GREP_COLORS="ms=01;34" grep -E --color=always "^|CONTAINER ID|NAMES|IMAGE|STATUS|PORTS" | less -R'
 alias di='docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.CreatedSince}}\t{{.Size}}" | GREP_COLORS="ms=01;34" grep -E --color=always "^|REPOSITORY|TAG|IMAGE ID|CREATED|SIZE" | less -R'
 alias dis='docker system df | GREP_COLORS="ms=01;34" grep -E --color=always "^|TYPE|Images" | less -R'
-alias dex='docker exec -it'
-alias dlog='docker logs'
-alias drm='docker rm -f'
 alias drmi='docker rmi'
 
 # Docker compose shortcuts
