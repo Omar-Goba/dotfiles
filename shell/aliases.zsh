@@ -62,6 +62,11 @@ alias dcl='docker compose logs -f'
 # Vim and editor shortcuts
 alias n="nvim"
 
+# AI coding agents
+alias oc='opencode'
+alias cl='claude'
+alias cx='codex'
+
 # Other aliases (python, aux commands, etc.)
 alias py="python3 -q"
 alias fast="speedtest-cli --secure"
