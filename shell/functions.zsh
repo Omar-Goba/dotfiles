@@ -467,19 +467,22 @@ function gl() {
 #   Long path/branch values are truncated to keep rows on one line.
 #
 # Usage:
-#   gwl [--plain] [--disk]
+#   gwl [--plain] [--disk] [--pr]
 #   --plain: disable color output for scripting/piping.
 #   --disk: show per-worktree disk usage column.
+#   --pr: show open GitHub PR number for each branch.
 function gwl() {
   local plain=0
   local show_disk=0
+  local show_pr=0
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --plain) plain=1 ;;
       --disk) show_disk=1 ;;
+      --pr|--prs) show_pr=1 ;;
       *)
-        echo "Usage: gwl [--plain] [--disk]" >&2
+        echo "Usage: gwl [--plain] [--disk] [--pr]" >&2
         return 1
         ;;
     esac
@@ -498,6 +501,7 @@ function gwl() {
   local head_w=7
   local state_w=16
   local disk_w=8
+  local pr_w=8
 
   if (( COLUMNS > 0 && COLUMNS < 120 )); then
     path_w=34
@@ -510,6 +514,82 @@ function gwl() {
     echo "Error: Not inside a git repository/worktree." >&2
     return 1
   fi
+
+  typeset -A gwl_prs
+
+  _gwl_remote_slug() {
+    local remote_url="$1"
+    local remote_host=""
+    local slug=""
+
+    case "$remote_url" in
+      git@github.com:*) slug="${remote_url#git@github.com:}" ;;
+      https://github.com/*) slug="${remote_url#https://github.com/}" ;;
+      http://github.com/*) slug="${remote_url#http://github.com/}" ;;
+      git@*:*)
+        remote_host="${remote_url#git@}"
+        remote_host="${remote_host%%:*}"
+        if [[ "$(ssh -G "$remote_host" 2>/dev/null | awk '/^hostname / { print $2; exit }')" == "github.com" ]]; then
+          slug="${remote_url#git@*:}"
+        fi
+        ;;
+    esac
+
+    slug="${slug%.git}"
+    print -r -- "$slug"
+  }
+
+  _gwl_load_prs() {
+    [[ $show_pr -eq 1 ]] || return 0
+
+    if ! command -v gh >/dev/null 2>&1; then
+      echo "Error: gh is required for --pr." >&2
+      return 1
+    fi
+
+    local first_path=""
+    local remote_url
+    local repo_slug
+    local pr_rows
+    local pr_line
+    local pr_branch
+    local pr_number
+
+    for pr_line in ${(f)worktree_list}; do
+      [[ "$pr_line" == worktree\ * ]] || continue
+      first_path="${pr_line#worktree }"
+      [[ "$first_path" == */._repo ]] && continue
+      break
+    done
+
+    if [[ -z "$first_path" ]]; then
+      echo "Error: Could not find a worktree for --pr." >&2
+      return 1
+    fi
+
+    if ! remote_url="$(git --git-dir="$first_path/.git" --work-tree="$first_path" remote get-url origin 2>/dev/null)"; then
+      echo "Error: Could not read origin remote for --pr." >&2
+      return 1
+    fi
+
+    repo_slug="$(_gwl_remote_slug "$remote_url")"
+    if [[ -z "$repo_slug" || "$repo_slug" == "$remote_url" ]]; then
+      echo "Error: --pr only supports GitHub origin remotes." >&2
+      return 1
+    fi
+
+    if ! pr_rows="$(gh pr list --repo "$repo_slug" --state open --limit 200 --json headRefName,number --template '{{range .}}{{.headRefName}}{{"\t"}}{{.number}}{{"\n"}}{{end}}' 2>/dev/null)"; then
+      echo "Error: Could not fetch open PRs with gh." >&2
+      return 1
+    fi
+
+    while IFS=$'\t' read -r pr_branch pr_number; do
+      [[ -n "$pr_branch" && -n "$pr_number" ]] || continue
+      gwl_prs[$pr_branch]="#$pr_number"
+    done <<< "$pr_rows"
+  }
+
+  _gwl_load_prs || return 1
 
   local c_reset="" c_dim="" c_green="" c_red="" c_yellow="" c_blue="" c_magenta="" c_cyan=""
   if [[ $plain -eq 0 ]]; then
@@ -594,6 +674,8 @@ function gwl() {
 
     local branch_display="detached"
     [[ -n "$row_branch_ref" ]] && branch_display="${row_branch_ref#refs/heads/}"
+    local pr_display="-"
+    [[ $show_pr -eq 1 && -n "$row_branch_ref" && -n "${gwl_prs[$branch_display]}" ]] && pr_display="${gwl_prs[$branch_display]}"
 
     local head_short="${row_head[1,7]}"
     local state_text="clean"
@@ -607,6 +689,7 @@ function gwl() {
     path_display="$(_gwl_trunc_path_keep_leaf "$path_display" "$path_w")"
     branch_display="$(_gwl_trunc_end "$branch_display" "$branch_w")"
     state_text="$(_gwl_trunc_end "$state_text" "$state_w")"
+    pr_display="$(_gwl_trunc_end "$pr_display" "$pr_w")"
 
     local disk_display=""
     if [[ $show_disk -eq 1 ]]; then
@@ -622,13 +705,28 @@ function gwl() {
     [[ "$state_text" == *dirty* ]] && state_color="$c_red"
     [[ "$state_text" == *prunable* ]] && state_color="$c_yellow"
 
-    if [[ $show_disk -eq 1 ]]; then
+    if [[ $show_disk -eq 1 && $show_pr -eq 1 ]]; then
+      printf "%b%-2s %-${path_w}s %b%-${branch_w}s%b %b%-${head_w}s%b %b%-${state_w}s%b %b%-${pr_w}s%b %b%-${disk_w}s%b\n" \
+        "$c_dim" "$marker" "$path_display" \
+        "$c_blue" "$branch_display" "$c_reset" \
+        "$c_magenta" "$head_short" "$c_reset" \
+        "$state_color" "$state_text" "$c_reset" \
+        "$c_yellow" "$pr_display" "$c_reset" \
+        "$c_cyan" "$disk_display" "$c_reset"
+    elif [[ $show_disk -eq 1 ]]; then
       printf "%b%-2s %-${path_w}s %b%-${branch_w}s%b %b%-${head_w}s%b %b%-${state_w}s%b %b%-${disk_w}s%b\n" \
         "$c_dim" "$marker" "$path_display" \
         "$c_blue" "$branch_display" "$c_reset" \
         "$c_magenta" "$head_short" "$c_reset" \
         "$state_color" "$state_text" "$c_reset" \
         "$c_cyan" "$disk_display" "$c_reset"
+    elif [[ $show_pr -eq 1 ]]; then
+      printf "%b%-2s %-${path_w}s %b%-${branch_w}s%b %b%-${head_w}s%b %b%-${state_w}s%b %b%-${pr_w}s%b\n" \
+        "$c_dim" "$marker" "$path_display" \
+        "$c_blue" "$branch_display" "$c_reset" \
+        "$c_magenta" "$head_short" "$c_reset" \
+        "$state_color" "$state_text" "$c_reset" \
+        "$c_yellow" "$pr_display" "$c_reset"
     else
       printf "%b%-2s %-${path_w}s %b%-${branch_w}s%b %b%-${head_w}s%b %b%-${state_w}s%b\n" \
         "$c_dim" "$marker" "$path_display" \
@@ -638,9 +736,15 @@ function gwl() {
     fi
   }
 
-  if [[ $show_disk -eq 1 ]]; then
+  if [[ $show_disk -eq 1 && $show_pr -eq 1 ]]; then
+    printf "%b%-2s %-${path_w}s %-${branch_w}s %-${head_w}s %-${state_w}s %-${pr_w}s %-${disk_w}s%b\n" \
+      "$c_dim" "" "PATH" "BRANCH" "HEAD" "STATE" "PR" "DISK" "$c_reset"
+  elif [[ $show_disk -eq 1 ]]; then
     printf "%b%-2s %-${path_w}s %-${branch_w}s %-${head_w}s %-${state_w}s %-${disk_w}s%b\n" \
       "$c_dim" "" "PATH" "BRANCH" "HEAD" "STATE" "DISK" "$c_reset"
+  elif [[ $show_pr -eq 1 ]]; then
+    printf "%b%-2s %-${path_w}s %-${branch_w}s %-${head_w}s %-${state_w}s %-${pr_w}s%b\n" \
+      "$c_dim" "" "PATH" "BRANCH" "HEAD" "STATE" "PR" "$c_reset"
   else
     printf "%b%-2s %-${path_w}s %-${branch_w}s %-${head_w}s %-${state_w}s%b\n" \
       "$c_dim" "" "PATH" "BRANCH" "HEAD" "STATE" "$c_reset"
