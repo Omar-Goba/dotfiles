@@ -389,6 +389,9 @@ function mdp() {
     return 1
   fi
 
+  # mermaid-filter always creates this file; remove it if empty
+  [[ -f "mermaid-filter.err" && ! -s "mermaid-filter.err" ]] && rm "mermaid-filter.err"
+
   echo "Successfully created: $out_file"
 
   # Open PDF if -v
