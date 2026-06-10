@@ -3,7 +3,7 @@
 [[ -n "$ZSH_VERSION" ]] || return
 autoload -Uz compdef 2>/dev/null || return
 
-function _tx() {
+function _txp() {
   _arguments \
     '-v[open generated PDF]' \
     '-b[run bibtex]' \
@@ -11,15 +11,25 @@ function _tx() {
     '1:TeX file:_files -g "*.tex"'
 }
 
-function _mdpdf() {
+function _mdp() {
   _arguments \
     '-v[open generated PDF]' \
     '1:Markdown file:_files -g "*.(md|markdown)"' \
     '2:output PDF name: '
 }
 
-compdef _tx tx
-compdef _mdpdf mdpdf
+function _txn() {
+  _arguments '1:filename:_files -g "*.tex"'
+}
+
+function _mdn() {
+  _arguments '1:filename: '
+}
+
+compdef _txp txp
+compdef _mdp mdp
+compdef _txn txn
+compdef _mdn mdn
 
 function _gwn() {
   _arguments \

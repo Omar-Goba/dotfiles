@@ -179,13 +179,13 @@ function c() {
 # Requires: pdflatex, optionally bibtex and open (macOS).
 # Compile a LaTeX file using pdflatex and optionally open the resulting PDF.
 # If a ./pdfs directory exists, output goes there; otherwise it stays in the current directory.
-# Usage: tx [-v] [-b] [-c] <filename>
+# Usage: txp [-v] [-b] [-c] <filename>
 # -v: Verbose mode; opens the PDF after successful compilation.
 # -b: Run bibtex after the first pdflatex pass.
 # -c: Clean auxiliary files recursively (e.g., .aux, .log, .out, .bbl, .blg).
 #
 # Requires: pdflatex, find, optionally bibtex and open (macOS).
-function tx() {
+function txp() {
   local verbose=0
   local run_bibtex=0
   local recursive_clean=0
@@ -200,7 +200,7 @@ function tx() {
       v) verbose=1 ;;
       b) run_bibtex=1 ;;
       c) recursive_clean=1 ;; # Handle the new -c flag
-      *) echo "Usage: tx [-v] [-b] [-c] <filename>" && return 1 ;;
+      *) echo "Usage: txp [-v] [-b] [-c] <filename>" && return 1 ;;
     esac
   done
   shift $((OPTIND - 1))
@@ -208,14 +208,14 @@ function tx() {
   # Check if a filename was provided.
   if [[ -z "$1" ]]; then
     echo "Error: No file specified."
-    echo "Usage: tx [-v] [-b] [-c] <filename>"
+    echo "Usage: txp [-v] [-b] [-c] <filename>"
     return 1
   fi
   tex_file="$1"
   base_name="${tex_file##*/}"
   base_name="${base_name%.tex}"
 
-  # Match mdpdf output behavior.
+  # Match mdp output behavior.
   [[ -d "pdfs" ]] && out_dir="pdfs"
   pdf_file="${out_dir}/${base_name}.pdf"
 
@@ -323,10 +323,10 @@ function tx() {
 # If a ./pdfs directory exists, output goes there; otherwise it stays in the current directory.
 # If an output name is provided, it is used; otherwise the PDF uses the Markdown filename.
 #
-# Usage: mdpdf [-v] <file.md> [output-name]
+# Usage: mdp [-v] <file.md> [output-name]
 # -v: Verbose mode; opens the PDF after successful compilation.
 #
-function mdpdf() {
+function mdp() {
   local verbose=0
   local md_file
   local out_name
@@ -338,7 +338,7 @@ function mdpdf() {
   while getopts "v" opt; do
     case "$opt" in
       v) verbose=1 ;;
-      *) echo "Usage: mdpdf [-v] <file.md> [output-name]" && return 1 ;;
+      *) echo "Usage: mdp [-v] <file.md> [output-name]" && return 1 ;;
     esac
   done
   shift $((OPTIND - 1))
@@ -346,7 +346,7 @@ function mdpdf() {
   # Check args
   if [[ -z "$1" ]]; then
     echo "Error: No Markdown file specified."
-    echo "Usage: mdpdf [-v] <file.md> [output-name]"
+    echo "Usage: mdp [-v] <file.md> [output-name]"
     return 1
   fi
 
@@ -403,6 +403,60 @@ function mdpdf() {
   fi
 }
 
+# Function: txn
+# Description:
+#   Bootstrap a new LaTeX note from the default template. Copies the template
+#   and its companion sty file into the current directory, then opens it.
+#
+# Usage:
+#   txn [filename]
+#
+# Requires: cp, $EDITOR
+function txn() {
+  local templates_dir="$HOME/dotfiles/config/templates/latex"
+  local filename="${${1:-tmp}%.tex}.tex"
+
+  if [[ ! -d "$templates_dir" ]]; then
+    echo "Error: Templates directory '$templates_dir' not found." >&2
+    return 1
+  fi
+  if [[ -f "$filename" ]]; then
+    echo "Error: '$filename' already exists." >&2
+    return 1
+  fi
+
+  cp "$templates_dir/default.tex" "$filename" || return 1
+  [[ ! -f "sty.sty" ]] && cp "$templates_dir/sty.sty" "./sty.sty"
+  echo "Created: $filename"
+  "${EDITOR:-nvim}" "$filename"
+}
+
+# Function: mdn
+# Description:
+#   Bootstrap a new Markdown note from the default template. Uses a timestamp
+#   as the filename if no name is given.
+#
+# Usage:
+#   mdn [filename]
+#
+# Requires: cp, $EDITOR
+function mdn() {
+  local templates_dir="$HOME/dotfiles/config/templates/markdown"
+  local filename="${${1:-$(date '+%Y%m%dT%H%M')}%.md}.md"
+
+  if [[ ! -d "$templates_dir" ]]; then
+    echo "Error: Templates directory '$templates_dir' not found." >&2
+    return 1
+  fi
+  if [[ -f "$filename" ]]; then
+    echo "Error: '$filename' already exists." >&2
+    return 1
+  fi
+
+  cp "$templates_dir/default.md" "$filename" || return 1
+  echo "Created: $filename"
+  "${EDITOR:-nvim}" "$filename"
+}
 
 # Recursively add `.gitkeep` files to all empty folders from the current directory.
 # Useful for preserving empty directories in Git repositories.
