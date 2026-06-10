@@ -426,7 +426,6 @@ function txn() {
   fi
 
   cp "$templates_dir/default.tex" "$filename" || return 1
-  [[ ! -f "sty.sty" ]] && cp "$templates_dir/sty.sty" "./sty.sty"
   echo "Created: $filename"
   "${EDITOR:-nvim}" "$filename"
 }
