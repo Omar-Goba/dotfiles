@@ -1,7 +1,5 @@
 ---
-title: 
-date: 
+geometry: margin=1in
 ---
 
-## 
-
+##
