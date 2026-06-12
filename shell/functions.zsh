@@ -515,6 +515,111 @@ function gl() {
     git log --all --graph --color=always --pretty=format:'%C(magenta)%h %C(white) %an %ar%C(auto) %D%n%s%n' | less -R +/HEAD
 }
 
+# Function: tap
+# Description:
+#   Records a quick terminal thought marker with tactile feedback.
+#   Logs timestamp, directory, and current git branch as TSV.
+#
+# Usage:
+#   tap
+function tap() {
+  local file="${TAP_LOG:-$HOME/.taplog}"
+  local now dir branch count log_dir
+
+  if [[ $# -ne 0 ]]; then
+    echo "Usage: tap" >&2
+    return 1
+  fi
+
+  now="$(date '+%Y-%m-%d %H:%M:%S')"
+  dir="$PWD"
+  branch="$(git branch --show-current 2>/dev/null)"
+  log_dir="${file:h}"
+
+  if [[ -n "$log_dir" && ! -d "$log_dir" ]]; then
+    mkdir -p "$log_dir" || return 1
+  fi
+
+  if [[ -f "$file" ]]; then
+    count=$(($(wc -l < "$file" | tr -d ' ') + 1))
+  else
+    count=1
+  fi
+
+  local label="tap #$count  $(date '+%H:%M:%S')"
+  local border="${(l:$(( ${#label} + 4 ))::─:)}"
+
+  printf '\a\n'
+  printf '╭─ %s ─╮\n' "$label"
+  printf '╰%s╯\n\n' "$border"
+
+  if (( count % 10 == 0 )); then
+    printf '✨ milestone tap: %s ✨\n\n' "$count"
+  fi
+
+  printf '%s\t%s\t%s\n' "$now" "$dir" "$branch" >> "$file"
+}
+
+# Function: tapstats
+# Description:
+#   Shows aggregate stats for taps recorded by `tap`.
+#
+# Usage:
+#   tapstats
+function tapstats() {
+  local file="${TAP_LOG:-$HOME/.taplog}"
+
+  if [[ $# -ne 0 ]]; then
+    echo "Usage: tapstats" >&2
+    return 1
+  fi
+
+  if [[ ! -f "$file" ]]; then
+    echo "No taps yet."
+    return 1
+  fi
+
+  echo
+  echo "╭─ tap stats ────────────────────────╮"
+  printf '│ total taps: %s\n' "$(wc -l < "$file" | tr -d ' ')"
+  printf '│ first tap : %s\n' "$(awk -F'\t' 'NR == 1 { print $1; exit }' "$file")"
+  printf '│ latest tap: %s\n' "$(awk -F'\t' 'END { print $1 }' "$file")"
+  echo "╰────────────────────────────────────╯"
+
+  echo
+  echo "Taps by day:"
+  awk -F'\t' '{ day=substr($1,1,10); count[day]++ } END { for (d in count) print d, count[d] }' "$file" |
+    sort |
+    while read -r day n; do
+      printf '%s  %3d  %s\n' "$day" "$n" "$(printf '%*s' "$n" '' | tr ' ' '█')"
+    done
+
+  echo
+  echo "Taps by hour:"
+  awk -F'\t' '{ hour=substr($1,12,2); count[hour]++ } END { for (h=0; h<24; h++) { hh=sprintf("%02d", h); print hh, count[hh]+0 } }' "$file" |
+    while read -r hour n; do
+      printf '%s:00  %3d  %s\n' "$hour" "$n" "$(printf '%*s' "$n" '' | tr ' ' '▇')"
+    done
+
+  echo
+  echo "Top directories:"
+  awk -F'\t' '{ count[$2]++ } END { for (d in count) print count[d] "\t" d }' "$file" |
+    sort -nr |
+    head -10 |
+    while IFS=$'\t' read -r n d; do
+      printf '%3d  %s\n' "$n" "$d"
+    done
+}
+
+function tapstat() {
+  tapstats "$@"
+}
+
+function tapline() {
+  tap "$@" || return 1
+  printf '        thought checkpoint reached\n'
+}
+
 # Function: gwl
 # Description:
 #   Pretty prints `git worktree list` by parsing porcelain output.
