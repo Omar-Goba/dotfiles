@@ -232,7 +232,7 @@ function txp() {
   fi
 
   # First pdflatex pass.
-  if ! pdflatex -output-directory="$out_dir" "$tex_file"; then
+  if ! pdflatex -interaction=nonstopmode -output-directory="$out_dir" "$tex_file"; then
     echo "Error: Failed to compile '$tex_file' with pdflatex."
     return 1
   fi
@@ -258,12 +258,12 @@ function txp() {
       fi
       # Recompile twice after bibtex to resolve references.
       echo "Recompiling with pdflatex (1st pass after bibtex)..."
-      if ! pdflatex -output-directory="$out_dir" "$tex_file"; then
+      if ! pdflatex -interaction=nonstopmode -output-directory="$out_dir" "$tex_file"; then
         echo "Error: Failed to compile '$tex_file' (1st pass after bibtex)."
         return 1
       fi
       echo "Recompiling with pdflatex (2nd pass after bibtex)..."
-      if ! pdflatex -output-directory="$out_dir" "$tex_file"; then
+      if ! pdflatex -interaction=nonstopmode -output-directory="$out_dir" "$tex_file"; then
         echo "Error: Failed to compile '$tex_file' (2nd pass after bibtex)."
         return 1
       fi
