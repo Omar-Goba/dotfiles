@@ -1,3 +1,7 @@
+\usepackage[dvipsnames]{xcolor} % color
+\definecolor{background}{RGB}{47, 52, 63}
+\definecolor{foreground}{RGB}{214, 199, 169}
+\usepackage[a4paper,margin=1.2cm]{geometry} % page layout
 \usepackage{amsmath} % math stuff
 \usepackage{amsfonts} % fonts stuff
 \usepackage{amssymb} % symbol stuff
@@ -18,7 +22,7 @@
 \newcommand{\img}[1]{\begin{figure}[!htb]\center\includegraphics[width=0.25\textwidth]{#1}\end{figure}}
 \newcommand{\bimg}[1]{\begin{figure}[!htb]\center\includegraphics[width=0.5\textwidth]{#1}\end{figure}}
 \newcommand{\simg}[1]{\begin{figure}[!htb]\center\includegraphics[width=0.2\textwidth]{#1}\end{figure}}
-\newcommand{\imgz}[2]{\begin{minipage}[t]{.45\linewidt[!htb]}\includegraphics[width=\linewidth]{#1}\end{minipage}\hfill\begin{minipage}[b]{.45\linewidth}\includegraphics[width=\linewidth]{#2}\end{minipage}}
+\newcommand{\imgz}[2]{\begin{minipage}[t]{.45\linewidth}\includegraphics[width=\linewidth]{#1}\end{minipage}\hfill\begin{minipage}[b]{.45\linewidth}\includegraphics[width=\linewidth]{#2}\end{minipage}}
 \newcommand{\dint}[1]{\int_{\Delta#1}}
 \newcommand{\Sum}[2]{\sum^\infty_{#1=#2}}
 \newcommand{\oo}{\infty}
@@ -31,4 +35,3 @@
 \renewcommand{\frak}[1]{\mathfrak{#1}}
 \renewcommand{\cal}[1]{\mathcal{#1}}
 \renewcommand{\vec}[1]{\overrightarrow{#1}}
-
