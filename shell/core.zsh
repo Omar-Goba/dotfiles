@@ -23,6 +23,7 @@ export HOMEBREW_NO_AUTO_UPDATE=1 # homebrew
 export YOLO_VERBOSE=False # CV yolo model
 export TF_CPP_MIN_LOG_LEVEL='3' # tensorflow
 export TERM="tmux-256color" # tmux color support
+export TEXMFHOME="$HOME/dotfiles/config/templates" # LaTeX user package tree
 export TAP_LOG="${TAP_LOG:-$HOME/.taplog}" # terminal thought-tap tracker
 export PATH="$PATH:$HOME/.local/bin" # pipx
 eval "$(zoxide init --cmd cd zsh)" # zoxide

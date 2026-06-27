@@ -1,0 +1,130 @@
+%page style
+\usepackage[dvipsnames]{xcolor} % color
+\definecolor{background}{RGB}{47, 52, 63}
+\definecolor{foreground}{RGB}{214, 199, 169}
+\usepackage{etoolbox} % for patching commands
+
+%packages
+\usepackage{amsmath} % math stuff
+\usepackage{mathtools} % math stuff
+\usepackage{amsfonts} % fonts stuff
+\usepackage{amssymb} % symbol stuff
+\usepackage[utf8]{inputenc} % emojis
+\usepackage[english]{babel} % Change hyphenation rules
+\usepackage{hyperref} % Add a link to your document
+\usepackage{graphicx} % Add pictures to your document
+\graphicspath{{./rsc/}}
+\usepackage{listings} % Source code formatting and highlighting
+\usepackage{cancel} % to cancel
+\usepackage{array} % for table column formatting
+\usepackage{tikz} % for drawing
+\usetikzlibrary{arrows,automata,calc}
+\usetikzlibrary{positioning}
+\usepackage{listings} % Source code formatting and highlighting
+\usepackage{pgfplots} % for plots
+\usepackage{geometry} % for margins
+\usepackage{enumitem} % for lists
+\usepackage{bigstrut} % for making rows in tables taller
+\usepackage[nodayofweek]{datetime} % for date formatting
+
+% Patch \cite and related commands to wrap with color
+\pretocmd{\cite}{\textcolor{foreground}}{}{}
+\pretocmd{\citep}{\textcolor{foreground}}{}{}
+\pretocmd{\citet}{\textcolor{foreground}}{}{}
+
+
+%hyper link style
+\hypersetup{
+	colorlinks=true,
+	urlcolor=foreground,
+}
+
+% python formatting
+\lstset{
+	language=Python,
+	backgroundcolor=\color{background},
+	basicstyle=\footnotesize\color{foreground},
+	commentstyle=\color{foreground},
+	keywordstyle=\color{foreground},
+	numberstyle=\tiny\color{foreground},
+	stringstyle=\color{foreground},
+	identifierstyle=\color{foreground},
+	basicstyle=\rmfamily\color{foreground},
+	breakatwhitespace=false,
+	breaklines=true,
+	captionpos=b,
+	keepspaces=true,
+	numbersep=-5pt,
+	showspaces=false,
+	showstringspaces=false,
+	showtabs=false,
+	tabsize=2,
+	frame=tb,
+}
+
+% code formatting
+\makeatletter
+\usepackage[ruled]{algorithm2e}
+\renewcommand{\@algocf@capt@plain}{above}% formerly {bottom}
+\renewcommand{\KwSty}[1]{\textnormal{\textcolor{foreground}{#1}}\unskip}
+\renewcommand*{\algorithmcfname}{\color{foreground}Algorithm}
+\SetAlgoCaptionSeparator{\color{foreground}\unskip:}
+\newcommand{\setalgotoprulecolor}[1]{\colorlet{toprulecolor}{#1}}
+\let\old@algocf@pre@ruled\@algocf@pre@ruled % Adjust top rule colour
+\renewcommand{\@algocf@pre@ruled}{\textcolor{toprulecolor}{\old@algocf@pre@ruled}}
+\newcommand{\setalgobotrulecolor}[1]{\colorlet{bottomrulecolor}{#1}}
+\let\old@algocf@post@ruled\@algocf@post@ruled % Adjust middle rule colour
+\renewcommand{\@algocf@post@ruled}{\textcolor{bottomrulecolor}{\old@algocf@post@ruled}}
+\newcommand{\setalgomidrulecolor}[1]{\colorlet{midrulecolor}{#1}}
+\renewcommand{\algocf@caption@ruled}{%
+	\box\algocf@capbox{\color{midrulecolor}\kern\interspacetitleruled\hrule
+		width\algocf@ruledwidth height\algotitleheightrule depth0pt\kern\interspacealgoruled}}
+\setalgotoprulecolor{foreground}
+\setalgomidrulecolor{foreground}
+\setalgobotrulecolor{foreground}
+
+% margin setting
+\geometry{a4paper, lmargin = 1.5cm, rmargin = 1.5cm, tmargin = 1.5cm, bmargin = 1.0cm}
+\setlist{leftmargin=5.5mm}
+
+% externalize tikz for faster compilation in graphics
+%\usepgfplotslibrary{external}
+%\tikzexternalize
+
+% math stuff
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+
+%macros
+\newcommand{\ls}[1]{\begin{itemize}\item #1\end{itemize}}
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\cd}[4]{\RestyleAlgo{ruled}\begin{algorithm}[H]\caption{\color{foreground}#1}\KwIn{\color{foreground}#2}\KwOut{\color{foreground}#3}\color{foreground}#4\end{algorithm}}
+\newcommand{\tb}[2]{\begin{center}\begin{tabular}{#1}#2\end{tabular}\end{center}}
+\newcommand{\del}[2]{\frac{\partial #1}{\partial #2}}
+\newcommand{\der}[2]{\frac{d #1}{d #2}}
+\newcommand{\ihat}{\hat\imath}\newcommand{\jhat}{\hat\jmath}\newcommand{\khat}{\hat k}
+\DeclarePairedDelimiter{\norm}{\lVert}{\rVert}
+\newcommand{\mtrx}[1]{\begin{matrix}#1\end{matrix}}
+\newcommand{\bmtrx}[1]{\begin{bmatrix}#1\end{bmatrix}}
+\renewcommand{\line}{\par\noindent\rule{\textwidth}{0.4pt}}
+\newcommand{\img}[1]{\begin{figure}[!htb]\center\includegraphics[width=0.25\textwidth]{#1}\end{figure}}
+\newcommand{\bimg}[1]{\begin{figure}[!htb]\center\includegraphics[width=0.5\textwidth]{#1}\end{figure}}
+\newcommand{\simg}[1]{\begin{figure}[!htb]\center\includegraphics[width=0.2\textwidth]{#1}\end{figure}}
+\newcommand{\imgz}[2]{\begin{minipage}[t]{.45\linewidth}\includegraphics[width=\linewidth]{#1}\end{minipage}\hfill\begin{minipage}[b]{.45\linewidth}\includegraphics[width=\linewidth]{#2}\end{minipage}}
+\newcommand{\dint}[1]{\int_{\Delta#1}}
+\newcommand{\Sum}[2]{\sum^\infty_{#1=#2}}
+\newcommand{\oo}{\infty}
+\renewcommand{\o}{\mathrm o}
+\newcommand{\bb}[1]{\mathbb{#1}}
+\renewcommand{\bf}[1]{\textbf{#1}}
+\renewcommand{\it}[1]{\textit{#1}}
+\renewcommand{\tt}[1]{\texttt{#1}}
+\renewcommand{\u}[1]{\underline{#1}}
+\renewcommand{\rm}[1]{\mathrm{#1}}
+\renewcommand{\frak}[1]{\mathfrak{#1}}
+\renewcommand{\cal}[1]{\mathcal{#1}}
+\newcommand{\qt}[1]{``#1``}
+\renewcommand{\vec}[1]{\overrightarrow{#1}}
+\newcommand{\nrm}[1]{\left\vert\left\vert#1\right\vert\right\vert}
+\newcommand{\bra}[1]{\langle #1 \rvert}
+\newcommand{\ket}[1]{\lvert #1 \rangle}
