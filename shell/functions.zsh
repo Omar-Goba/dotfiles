@@ -568,6 +568,11 @@ function tap() {
 #   tapstats
 function tapstats() {
   local file="${TAP_LOG:-$HOME/.taplog}"
+  local term_w=${COLUMNS:-80}
+  local bar_w=32
+  local path_w=54
+  local box_w=52
+  local total first latest today today_count active_days avg_day peak_day peak_count peak_hour peak_hour_count
 
   if [[ $# -ne 0 ]]; then
     echo "Usage: tapstats" >&2
@@ -579,35 +584,100 @@ function tapstats() {
     return 1
   fi
 
-  echo
-  echo "╭─ tap stats ────────────────────────╮"
-  printf '│ total taps: %s\n' "$(wc -l < "$file" | tr -d ' ')"
-  printf '│ first tap : %s\n' "$(awk -F'\t' 'NR == 1 { print $1; exit }' "$file")"
-  printf '│ latest tap: %s\n' "$(awk -F'\t' 'END { print $1 }' "$file")"
-  echo "╰────────────────────────────────────╯"
+  if (( term_w >= 110 )); then
+    bar_w=40
+    path_w=72
+  elif (( term_w < 80 )); then
+    bar_w=22
+    path_w=38
+  fi
+
+  _tapstats_bar() {
+    local value="$1"
+    local max="$2"
+    local width="$3"
+    local char="${4:-█}"
+    local filled=0
+
+    if (( max > 0 && value > 0 )); then
+      filled=$(( (value * width + max - 1) / max ))
+    fi
+
+    printf '%*s' "$filled" '' | tr ' ' "$char"
+  }
+
+  _tapstats_short_path() {
+    local path_text="${1/#$HOME/~}"
+    local width="$2"
+    local len=${#path_text}
+
+    if (( len <= width )); then
+      print -r -- "$path_text"
+      return
+    fi
+
+    local leaf="${path_text##*/}"
+    local leaf_len=${#leaf}
+    if (( leaf_len + 5 < width )); then
+      local keep_prefix=$(( width - leaf_len - 5 ))
+      local prefix="${path_text[1,$keep_prefix]}"
+      prefix="${prefix%/}"
+      print -r -- "${prefix}/.../${leaf}"
+      return
+    fi
+
+    print -r -- "${path_text[1,$((width-3))]}..."
+  }
+
+  _tapstats_box_line() {
+    local text="$1"
+    if (( ${#text} > box_w )); then
+      text="${text[1,$((box_w-3))]}..."
+    fi
+    printf '│ %-*s │\n' "$box_w" "$text"
+  }
+
+  total="$(wc -l < "$file" | tr -d ' ')"
+  first="$(awk -F'\t' 'NR == 1 { print $1; exit }' "$file")"
+  latest="$(awk -F'\t' 'END { print $1 }' "$file")"
+  today="$(date '+%Y-%m-%d')"
+  today_count="$(awk -F'\t' -v today="$today" 'substr($1,1,10) == today { count++ } END { print count+0 }' "$file")"
+  active_days="$(awk -F'\t' '{ seen[substr($1,1,10)] = 1 } END { for (d in seen) count++; print count+0 }' "$file")"
+  avg_day="$(awk -v total="$total" -v days="$active_days" 'BEGIN { if (days > 0) printf "%.1f", total / days; else print "0.0" }')"
+  read -r peak_day peak_count <<< "$(awk -F'\t' '{ day=substr($1,1,10); count[day]++ } END { for (d in count) if (count[d] > max) { max=count[d]; peak=d } print peak, max+0 }' "$file")"
+  read -r peak_hour peak_hour_count <<< "$(awk -F'\t' '{ hour=substr($1,12,2); count[hour]++ } END { for (h in count) if (count[h] > max) { max=count[h]; peak=h } print peak, max+0 }' "$file")"
 
   echo
-  echo "Taps by day:"
-  awk -F'\t' '{ day=substr($1,1,10); count[day]++ } END { for (d in count) print d, count[d] }' "$file" |
+  printf '╭─ tap pulse %s╮\n' "${(l:$((box_w-10))::─:)}"
+  _tapstats_box_line "total $total  ·  today $today_count  ·  active days $active_days"
+  _tapstats_box_line "avg/day $avg_day  ·  peak day $peak_day ($peak_count)"
+  _tapstats_box_line "peak hour $peak_hour:00 ($peak_hour_count)"
+  _tapstats_box_line "first  $first"
+  _tapstats_box_line "latest $latest"
+  printf '╰%s╯\n' "${(l:$((box_w+2))::─:)}"
+
+  echo
+  echo "Daily rhythm"
+  awk -F'\t' '{ day=substr($1,1,10); count[day]++ } END { for (d in count) if (count[d] > max) max=count[d]; for (d in count) print d, count[d], max }' "$file" |
     sort |
-    while read -r day n; do
-      printf '%s  %3d  %s\n' "$day" "$n" "$(printf '%*s' "$n" '' | tr ' ' '█')"
+    while read -r day n max; do
+      printf '  %s  %4d  %-*s\n' "$day" "$n" "$bar_w" "$(_tapstats_bar "$n" "$max" "$bar_w" "█")"
     done
 
   echo
-  echo "Taps by hour:"
-  awk -F'\t' '{ hour=substr($1,12,2); count[hour]++ } END { for (h=0; h<24; h++) { hh=sprintf("%02d", h); print hh, count[hh]+0 } }' "$file" |
-    while read -r hour n; do
-      printf '%s:00  %3d  %s\n' "$hour" "$n" "$(printf '%*s' "$n" '' | tr ' ' '▇')"
+  echo "Hourly rhythm"
+  awk -F'\t' '{ hour=substr($1,12,2); count[hour]++ } END { for (h in count) if (count[h] > max) max=count[h]; for (h=0; h<24; h++) { hh=sprintf("%02d", h); print hh, count[hh]+0, max+0 } }' "$file" |
+    while read -r hour n max; do
+      printf '  %s:00  %4d  %-*s\n' "$hour" "$n" "$bar_w" "$(_tapstats_bar "$n" "$max" "$bar_w" "▇")"
     done
 
   echo
-  echo "Top directories:"
-  awk -F'\t' '{ count[$2]++ } END { for (d in count) print count[d] "\t" d }' "$file" |
+  echo "Top directories"
+  awk -F'\t' '{ count[$2]++ } END { for (d in count) if (count[d] > max) max=count[d]; for (d in count) print count[d] "\t" max "\t" d }' "$file" |
     sort -nr |
     head -10 |
-    while IFS=$'\t' read -r n d; do
-      printf '%3d  %s\n' "$n" "$d"
+    while IFS=$'\t' read -r n max d; do
+      printf '  %4d  %-10s  %s\n' "$n" "$(_tapstats_bar "$n" "$max" 10 "▸")" "$(_tapstats_short_path "$d" "$path_w")"
     done
 }
 
@@ -657,6 +727,7 @@ function gwl() {
   local wt_prunable=""
   local current_root
   local worktree_list
+  local display_root="${PWD:A}"
   local path_w=52
   local branch_w=30
   local head_w=7
@@ -820,6 +891,35 @@ function gwl() {
     print -r -- "${prefix}.../${leaf}"
   }
 
+  _gwl_relative_path() {
+    local target="${1:A}"
+    local base="${display_root:A}"
+    local -a target_parts base_parts rel_parts
+
+    if [[ "$target" == "$base" ]]; then
+      print -r -- "."
+      return
+    fi
+    if [[ "$target" == "$base"/* ]]; then
+      print -r -- "./${target#$base/}"
+      return
+    fi
+
+    target_parts=(${(s:/:)target})
+    base_parts=(${(s:/:)base})
+
+    while (( ${#target_parts[@]} > 0 && ${#base_parts[@]} > 0 && target_parts[1] == base_parts[1] )); do
+      target_parts=(${target_parts[@]:1})
+      base_parts=(${base_parts[@]:1})
+    done
+
+    rel_parts=()
+    repeat ${#base_parts[@]} rel_parts+=(..)
+    rel_parts+=(${target_parts[@]})
+
+    print -r -- "${(j:/:)rel_parts}"
+  }
+
   _gwl_print_row() {
     local row_path="$1"
     local row_head="$2"
@@ -846,7 +946,7 @@ function gwl() {
     [[ -n "$row_locked" ]] && state_text+=" locked"
     [[ -n "$row_prunable" ]] && state_text+=" prunable"
 
-    local path_display="${row_path/#$HOME/~}"
+    local path_display="$(_gwl_relative_path "$row_path")"
     path_display="$(_gwl_trunc_path_keep_leaf "$path_display" "$path_w")"
     branch_display="$(_gwl_trunc_end "$branch_display" "$branch_w")"
     state_text="$(_gwl_trunc_end "$state_text" "$state_w")"
