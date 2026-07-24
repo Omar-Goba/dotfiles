@@ -3,6 +3,13 @@
 [[ -n "$ZSH_VERSION" ]] || return
 autoload -Uz compdef 2>/dev/null || return
 
+_hoist() {
+  _arguments \
+    '1:strategy:(worktree-hub list help)' \
+    '2:target directory:_directories'
+}
+compdef _hoist hoist
+
 function _txp() {
   _arguments \
     '-v[open generated PDF]' \
