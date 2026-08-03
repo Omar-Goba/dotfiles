@@ -35,7 +35,7 @@ EOF
       fi
 
       local target="${1:-.}"
-      local -a directories=(auxiliary bug-fixes documentation features local)
+      local -a directories=(auxiliary bug-fixes documentation features local review)
       local directory entry_path
 
       if [[ (-e "$target" || -L "$target") && ! -d "$target" ]]; then
@@ -85,6 +85,7 @@ These directories belong to the hub, not to any individual worktree.
 - `auxiliary/` — hub-level examples and supporting assets that are not feature documentation.
 - `documentation/` — hub-level documentation such as planning, research, rollout notes, test matrices, or project-independent documentation shared across worktrees.
 - `local/` — local-only configuration, credentials, and machine-specific files. Treat as sensitive. Never copy values into tracked files or responses.
+- `review/` — hub-level review materials shared across worktrees.
 
 ## Working Inside a Worktree
 
