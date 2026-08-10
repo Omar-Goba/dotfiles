@@ -693,27 +693,29 @@ function tapline() {
 # Function: gwl
 # Description:
 #   Pretty prints `git worktree list` by parsing porcelain output.
-#   Shows current marker, shortened path, branch, short HEAD, state, and
-#   disk usage for each worktree.
-#   Long path/branch values are truncated to keep rows on one line.
+#   Shows current marker, full relative path, branch, short HEAD, state, and
+#   disk usage for each worktree. Use --compact for a truncated table view.
 #
 # Usage:
-#   gwl [--plain] [--disk] [--pr]
+#   gwl [--plain] [--compact] [--disk] [--pr]
 #   --plain: disable color output for scripting/piping.
+#   --compact: use a single-line table with truncated values.
 #   --disk: show per-worktree disk usage column.
 #   --pr: show open GitHub PR number for each branch.
 function gwl() {
   local plain=0
+  local compact=0
   local show_disk=0
   local show_pr=0
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --plain) plain=1 ;;
+      --compact) compact=1 ;;
       --disk) show_disk=1 ;;
       --pr|--prs) show_pr=1 ;;
       *)
-        echo "Usage: gwl [--plain] [--disk] [--pr]" >&2
+        echo "Usage: gwl [--plain] [--compact] [--disk] [--pr]" >&2
         return 1
         ;;
     esac
@@ -947,10 +949,6 @@ function gwl() {
     [[ -n "$row_prunable" ]] && state_text+=" prunable"
 
     local path_display="$(_gwl_relative_path "$row_path")"
-    path_display="$(_gwl_trunc_path_keep_leaf "$path_display" "$path_w")"
-    branch_display="$(_gwl_trunc_end "$branch_display" "$branch_w")"
-    state_text="$(_gwl_trunc_end "$state_text" "$state_w")"
-    pr_display="$(_gwl_trunc_end "$pr_display" "$pr_w")"
 
     local disk_display=""
     if [[ $show_disk -eq 1 ]]; then
@@ -959,12 +957,36 @@ function gwl() {
         disk_display="$(du -sh "$row_path" 2>/dev/null | awk '{print $1}')"
         [[ -z "$disk_display" ]] && disk_display="-"
       fi
-      disk_display="$(_gwl_trunc_end "$disk_display" "$disk_w")"
     fi
 
     local state_color="$c_green"
     [[ "$state_text" == *dirty* ]] && state_color="$c_red"
     [[ "$state_text" == *prunable* ]] && state_color="$c_yellow"
+
+    if [[ $compact -eq 0 ]]; then
+      printf "%b%s%b %s\n" "$c_dim" "$marker" "$c_reset" "$path_display"
+      printf "  %bbranch%b %b%s%b  %bhead%b %b%s%b  %bstate%b %b%s%b" \
+        "$c_dim" "$c_reset" \
+        "$c_blue" "$branch_display" "$c_reset" \
+        "$c_dim" "$c_reset" \
+        "$c_magenta" "$head_short" "$c_reset" \
+        "$c_dim" "$c_reset" \
+        "$state_color" "$state_text" "$c_reset"
+      if [[ $show_pr -eq 1 ]]; then
+        printf "  %bpr%b %b%s%b" "$c_dim" "$c_reset" "$c_yellow" "$pr_display" "$c_reset"
+      fi
+      if [[ $show_disk -eq 1 ]]; then
+        printf "  %bdisk%b %b%s%b" "$c_dim" "$c_reset" "$c_cyan" "$disk_display" "$c_reset"
+      fi
+      printf "\n"
+      return
+    fi
+
+    path_display="$(_gwl_trunc_path_keep_leaf "$path_display" "$path_w")"
+    branch_display="$(_gwl_trunc_end "$branch_display" "$branch_w")"
+    state_text="$(_gwl_trunc_end "$state_text" "$state_w")"
+    pr_display="$(_gwl_trunc_end "$pr_display" "$pr_w")"
+    disk_display="$(_gwl_trunc_end "$disk_display" "$disk_w")"
 
     if [[ $show_disk -eq 1 && $show_pr -eq 1 ]]; then
       printf "%b%-2s %-${path_w}s %b%-${branch_w}s%b %b%-${head_w}s%b %b%-${state_w}s%b %b%-${pr_w}s%b %b%-${disk_w}s%b\n" \
@@ -997,16 +1019,16 @@ function gwl() {
     fi
   }
 
-  if [[ $show_disk -eq 1 && $show_pr -eq 1 ]]; then
+  if [[ $compact -eq 1 && $show_disk -eq 1 && $show_pr -eq 1 ]]; then
     printf "%b%-2s %-${path_w}s %-${branch_w}s %-${head_w}s %-${state_w}s %-${pr_w}s %-${disk_w}s%b\n" \
       "$c_dim" "" "PATH" "BRANCH" "HEAD" "STATE" "PR" "DISK" "$c_reset"
-  elif [[ $show_disk -eq 1 ]]; then
+  elif [[ $compact -eq 1 && $show_disk -eq 1 ]]; then
     printf "%b%-2s %-${path_w}s %-${branch_w}s %-${head_w}s %-${state_w}s %-${disk_w}s%b\n" \
       "$c_dim" "" "PATH" "BRANCH" "HEAD" "STATE" "DISK" "$c_reset"
-  elif [[ $show_pr -eq 1 ]]; then
+  elif [[ $compact -eq 1 && $show_pr -eq 1 ]]; then
     printf "%b%-2s %-${path_w}s %-${branch_w}s %-${head_w}s %-${state_w}s %-${pr_w}s%b\n" \
       "$c_dim" "" "PATH" "BRANCH" "HEAD" "STATE" "PR" "$c_reset"
-  else
+  elif [[ $compact -eq 1 ]]; then
     printf "%b%-2s %-${path_w}s %-${branch_w}s %-${head_w}s %-${state_w}s%b\n" \
       "$c_dim" "" "PATH" "BRANCH" "HEAD" "STATE" "$c_reset"
   fi
