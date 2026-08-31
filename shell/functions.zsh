@@ -690,6 +690,60 @@ function tapline() {
   printf '        thought checkpoint reached\n'
 }
 
+# Function: gwr
+# Description:
+#   Removes multiple Git worktrees concurrently. Failed removals are reported
+#   after every requested removal has completed.
+#
+# Usage:
+#   gwr [-f|--force] <path> [<path> ...]
+function gwr() {
+  local force=0
+  local result=0
+  local i
+  local -a paths pids
+
+  while (( $# > 0 )); do
+    case "$1" in
+      -f|--force) force=1 ;;
+      --)
+        shift
+        break
+        ;;
+      -*)
+        echo "Usage: gwr [-f|--force] <path> [<path> ...]" >&2
+        return 1
+        ;;
+      *) paths+=("$1") ;;
+    esac
+    shift
+  done
+  paths+=("$@")
+
+  if (( ${#paths[@]} == 0 )); then
+    echo "Usage: gwr [-f|--force] <path> [<path> ...]" >&2
+    return 1
+  fi
+
+  for i in {1..${#paths[@]}}; do
+    if (( force )); then
+      git worktree remove --force -- "${paths[i]}" &
+    else
+      git worktree remove -- "${paths[i]}" &
+    fi
+    pids+=("$!")
+  done
+
+  for i in {1..${#pids[@]}}; do
+    if ! wait "${pids[i]}"; then
+      echo "Error: Failed to remove worktree '${paths[i]}'." >&2
+      result=1
+    fi
+  done
+
+  return "$result"
+}
+
 # Function: gwl
 # Description:
 #   Pretty prints `git worktree list` by parsing porcelain output.
