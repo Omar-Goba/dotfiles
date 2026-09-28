@@ -19,6 +19,7 @@ BACKUP_ROOT="${DOTFILES_BACKUP_DIR:-$HOME/.dotfiles-backups}"
 BACKUP_DIR=''
 declare -a PROFILES=()
 declare -a PACKAGES=()
+declare -a CASKS=()
 
 usage() {
   cat <<'EOF'
@@ -65,7 +66,7 @@ detect_platform() {
 
 has_profile() {
   local wanted=$1 profile
-  for profile in "${PROFILES[@]}"; do [[ $profile == "$wanted" ]] && return 0; done
+  for profile in "${PROFILES[@]:-}"; do [[ $profile == "$wanted" ]] && return 0; done
   return 1
 }
 
@@ -120,11 +121,12 @@ choose_profiles() {
 
 collect_packages() {
   PACKAGES=()
+  CASKS=()
   if [[ $OS == macos ]]; then
     if has_profile core; then PACKAGES+=(git zsh fzf fd ripgrep zoxide eza); fi
     if has_profile editor; then PACKAGES+=(neovim); fi
     if has_profile terminal; then PACKAGES+=(tmux gh btop fastfetch uv); fi
-    if has_profile writing; then PACKAGES+=(pandoc); fi
+    if has_profile writing; then PACKAGES+=(pandoc); CASKS+=(mactex-no-gui); fi
   else
     if has_profile core; then PACKAGES+=(git zsh curl ca-certificates fzf fd-find ripgrep); fi
     if has_profile editor; then PACKAGES+=(neovim); fi
@@ -135,7 +137,20 @@ collect_packages() {
 
 ensure_brew() {
   command -v brew >/dev/null 2>&1 && return
-  die 'Homebrew is required on macOS. Install it from https://brew.sh, then rerun this script.'
+  if (( DRY_RUN )); then
+    info 'Would install Homebrew from https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh'
+    return
+  fi
+  command -v curl >/dev/null 2>&1 || die 'curl is required to bootstrap Homebrew.'
+  info 'Installing Homebrew from its official installer'
+  NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  if [[ -x /opt/homebrew/bin/brew ]]; then
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+  elif [[ -x /usr/local/bin/brew ]]; then
+    eval "$(/usr/local/bin/brew shellenv)"
+  else
+    die 'Homebrew installed but was not found in a supported prefix. Open a new shell and rerun the installer.'
+  fi
 }
 
 install_packages() {
@@ -143,8 +158,12 @@ install_packages() {
   ((${#PACKAGES[@]})) || return
   if [[ $PACKAGE_MANAGER == brew ]]; then
     ensure_brew
-    info "Installing ${#PACKAGES[@]} Homebrew package(s)"
+    info "Installing ${#PACKAGES[@]} Homebrew formula(s)"
     run brew install "${PACKAGES[@]}"
+    if ((${#CASKS[@]})); then
+      info "Installing ${#CASKS[@]} Homebrew cask(s)"
+      run brew install --cask "${CASKS[@]}"
+    fi
   else
     command -v apt-get >/dev/null 2>&1 || die 'apt-get is required on this system.'
     info "Installing ${#PACKAGES[@]} apt package(s)"
@@ -262,12 +281,28 @@ show_link_plan() {
   fi
 }
 
+show_package_plan() {
+  (( NO_PACKAGES )) && { say 'Packages: skipped'; return; }
+  if [[ $OS == macos ]] && ! command -v brew >/dev/null 2>&1; then
+    say 'Package manager: bootstrap Homebrew from its official installer'
+  else
+    say "Package manager: $PACKAGE_MANAGER"
+  fi
+  say "Formulae/packages: ${PACKAGES[*]}"
+  ((${#CASKS[@]})) && say "Casks: ${CASKS[*]}"
+}
+
 doctor() {
   local failed=0 command
   say 'dotfiles doctor'
   for command in zsh git fzf rg; do
     if command -v "$command" >/dev/null 2>&1; then ok "$command: $(command -v "$command")"; else warn "$command is missing"; failed=1; fi
   done
+  if command -v nvim >/dev/null 2>&1; then
+    ok "nvim: $(nvim --version | head -n 1)"
+  else
+    warn 'nvim is missing; choose the editor profile to install it'
+  fi
   if [[ $OS == debian ]] && ! command -v fd >/dev/null 2>&1 && ! command -v fdfind >/dev/null 2>&1; then
     warn 'fd/fdfind is missing'; failed=1
   fi
@@ -342,7 +377,7 @@ main() {
   choose_profiles
   collect_packages
   say "Profiles: ${PROFILES[*]}"
-  if (( ! NO_PACKAGES )); then say "Packages: ${PACKAGES[*]}"; fi
+  show_package_plan
   say 'Configuration plan:'
   show_link_plan
   (( DRY_RUN )) && say 'Mode: dry run'
