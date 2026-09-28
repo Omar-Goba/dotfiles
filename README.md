@@ -105,20 +105,38 @@
 <tr><td>
 
 ```bash
-# 1 ─ clone into place
 git clone https://github.com/Omar-Goba/dotfiles ~/dotfiles
-
-# 2 ─ wire it up
-ln -sf ~/dotfiles/config/nvim ~/.config/nvim
-ln -sf ~/dotfiles/config/tmux ~/.config/tmux
-echo 'source ~/dotfiles/shell/core.zsh' >> ~/.zshrc
-
-# 3 ─ take off
-exec zsh
+cd ~/dotfiles
+./install.sh
 ```
 
 </td></tr>
 </table>
+
+The installer supports macOS with Homebrew and Debian-family Linux with `apt`. It
+shows the selected profiles and packages before making changes, backs up existing
+files under `~/.dotfiles-backups/`, and only manages its marked block in `.zshrc`.
+
+```bash
+# inspect the complete plan without changing anything
+./install.sh --dry-run
+
+# install only selected bundles
+./install.sh --profile core,editor
+
+# configuration links only
+./install.sh --no-packages
+
+# verify or restore a recorded backup
+./install.sh --doctor
+./install.sh --restore ~/.dotfiles-backups/<timestamp>
+```
+
+Profiles are `core` (zsh, Git, search/navigation), `editor` (Neovim), `terminal`
+(tmux and terminal tools), and `writing` (Pandoc and XeLaTeX). If
+[Gum](https://github.com/charmbracelet/gum) is already installed, the profile
+picker and confirmation use its interactive UI; otherwise the installer falls
+back to a plain terminal prompt.
 
 > <sub>keep machine-specific bits in `shell/local.zsh` — already ignored, stays off the public record.</sub>
 

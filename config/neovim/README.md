@@ -6,21 +6,8 @@ This repository contains my NeoVim configuration files.
 
 ## Setup
 
-1. Install [NeoVim](https://neovim.io/):
+1. Run `./install.sh --profile editor` from the dotfiles repository.
+2. Start `nvim`. Lazy.nvim installs the pinned plugins on first launch.
 
-   ```shell
-   sudo apt install neovim
-   ```
-
-2. Clone this repository at `~/.config/`:
-
-   ```shell
-   git clone https://github.com/Hamada-Gado/neovim.git
-   ```
-
-3. Run neovim:
-   * Set the `NVIM_APPNAME` environment variable to the name of the directory if it's not `nvim`:
-
-      ```shell
-      export NVIM_APPNAME="neovim"
-      ```
+The shell bootstrap sets `NVIM_APPNAME=neovim`, so this configuration is linked
+at `~/.config/neovim` rather than Neovim's default `~/.config/nvim` path.
