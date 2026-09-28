@@ -17,8 +17,7 @@ function get_battery() {
             current_bat=$(awk -v cur="$_cur_cap" -v max="$_max_cap" 'BEGIN { printf "%.2f", (cur/max)*100 }')
         fi
     else
-        echo "Error: Neither pmset nor ioreg command is available." >&2
-        return 1
+        return 0
     fi
     # Truncate decimal and output percentage if valid.
     percentage="${current_bat%%.*}"
@@ -44,5 +43,4 @@ function git_branch() {
 # applicable.
 export PS1="%B[\$(date +%Y-%m-%dT%H:%M:%S)] %1~\$(git_branch) 
  -> %b"
-
 

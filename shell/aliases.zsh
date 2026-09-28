@@ -3,15 +3,28 @@
 ### listing aliases ###
 alias ls="/bin/ls" # old ls command remains
 alias l="advanced_ls" # use advanced_ls for listing directories
-alias ll="eza -l -T --level=2 --no-user --time-style=iso --no-filesize -s type" # skip advanced_ls but keeps same style
-alias ld="eza -lD" # list directories only
-alias lf="eza -lf" # list files only
-alias la="eza -la" # list all files including hidden ones
+if command -v eza >/dev/null 2>&1; then
+  alias ll="eza -l -T --level=2 --no-user --time-style=iso --no-filesize -s type"
+  alias ld="eza -lD"
+  alias lf="eza -lf"
+  alias la="eza -la"
+else
+  alias ll="/bin/ls -la"
+  alias ld="/bin/ls -l"
+  alias lf="/bin/ls -l"
+  alias la="/bin/ls -la"
+fi
 
 ### Miscellaneous aliases ###
 alias rst="source ~/.zshrc"
 alias clr="clear && l"
-alias Pwd="pwd | pbcopy"
+if command -v pbcopy >/dev/null 2>&1; then
+  alias Pwd="pwd | pbcopy"
+elif command -v wl-copy >/dev/null 2>&1; then
+  alias Pwd="pwd | wl-copy"
+elif command -v xclip >/dev/null 2>&1; then
+  alias Pwd="pwd | xclip -selection clipboard"
+fi
 alias cp="cp -i"
 alias mv="mv -i"
 alias rm="rm -I"

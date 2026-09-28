@@ -54,7 +54,8 @@ opt.undodir = "~/.vim/undodir"
 
 -- some stuff for markdown
 function OpenMarkdownPreview(url)
-  vim.cmd("silent ! open -a safari -n --args --new-window " .. url)
+  local opener = vim.fn.has("mac") == 1 and "open" or "xdg-open"
+  vim.fn.jobstart({ opener, url }, { detach = true })
 end
 
 g.mkdp_browserfunc = "OpenMarkdownPreview"

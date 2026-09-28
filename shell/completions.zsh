@@ -1,7 +1,11 @@
 #! /bin/zsh
 
 [[ -n "$ZSH_VERSION" ]] || return
-autoload -Uz compdef 2>/dev/null || return
+autoload -Uz compinit 2>/dev/null || return
+if ! whence -w compdef >/dev/null 2>&1; then
+  compinit -d "${ZDOTDIR:-$HOME}/.zcompdump" 2>/dev/null
+fi
+whence compdef >/dev/null 2>&1 || return
 
 _hoist() {
   _arguments \

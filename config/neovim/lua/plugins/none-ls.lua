@@ -83,7 +83,7 @@ return {
 			filetypes = { "dockerfile", "toml" },
 			generator = helpers.formatter_factory({
 				command = "dprint",
-				args = { "fmt", "--stdin", "Dockerfile", "--config", "/Users/omar_yasser/.config/dprint/dprint.json" },
+					args = { "fmt", "--stdin", "Dockerfile" },
 				to_stdin = true,
 			}),
 		})

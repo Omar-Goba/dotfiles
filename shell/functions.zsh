@@ -416,7 +416,7 @@ function mdp() {
 #
 # Requires: cp, $EDITOR
 function txn() {
-  local templates_dir="$HOME/dotfiles/config/templates/latex"
+  local templates_dir="${DOTFILES_DIR:-$HOME/dotfiles}/config/templates/latex"
   local filename="${${1:-tmp}%.tex}.tex"
 
   if [[ ! -d "$templates_dir" ]]; then
@@ -443,7 +443,7 @@ function txn() {
 #
 # Requires: cp, $EDITOR
 function mdn() {
-  local templates_dir="$HOME/dotfiles/config/templates/markdown"
+  local templates_dir="${DOTFILES_DIR:-$HOME/dotfiles}/config/templates/markdown"
   local filename="${${1:-$(date '+%Y%m%dT%H%M')}%.md}.md"
 
   if [[ ! -d "$templates_dir" ]]; then
@@ -1639,7 +1639,7 @@ function mkcd() {
 # Usage: funcs [pattern]
 function funcs() {
   local pattern="${1:-}"
-  local shell_dir="$HOME/dotfiles/shell"
+  local shell_dir="${DOTFILES_DIR:-$HOME/dotfiles}/shell"
 
   if [[ ! -d "$shell_dir" ]]; then
     echo "Error: '$shell_dir' not found." >&2

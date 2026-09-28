@@ -11,11 +11,12 @@ local function read_file(path)
 	return content
 end
 
-local SYSTEM_PROMPT = read_file("/Users/omar_yasser/.config/neovim/lua/plugins/prompts/system.txt")
-local COPILOT_REVIEW = read_file("/Users/omar_yasser/.config/neovim/lua/plugins/prompts/review.txt")
-local COPILOT_EXPLAIN = read_file("/Users/omar_yasser/.config/neovim/lua/plugins/prompts/explain.txt")
-local COPILOT_REFACTOR = read_file("/Users/omar_yasser/.config/neovim/lua/plugins/prompts/refactor.txt")
-local PROMPT_COMMIT = read_file("/Users/omar_yasser/.config/neovim/lua/plugins/prompts/commit.txt")
+local prompts_dir = vim.fn.stdpath("config") .. "/lua/plugins/prompts/"
+local SYSTEM_PROMPT = read_file(prompts_dir .. "system.txt")
+local COPILOT_REVIEW = read_file(prompts_dir .. "review.txt")
+local COPILOT_EXPLAIN = read_file(prompts_dir .. "explain.txt")
+local COPILOT_REFACTOR = read_file(prompts_dir .. "refactor.txt")
+local PROMPT_COMMIT = read_file(prompts_dir .. "commit.txt")
 
 return {
 	"olimorris/codecompanion.nvim",

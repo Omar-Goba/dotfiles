@@ -1,3 +1,4 @@
 .DS_Store
 *.log
 *.bak
+config/uv/uv-receipt.json

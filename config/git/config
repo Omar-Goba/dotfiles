@@ -1,15 +1,11 @@
-[user]
-	name = Omar-Goba
-	email = omaryasserassem1@gmail.com
-
 [core]
-	excludesfile = /Users/omar_yasser/.config/git/ignore
+	excludesfile = ~/.config/git/ignore
 	editor = nvim
   compression = 9
   preloadindex = true
 
 [commit]
-    template = /Users/omar_yasser/.config/git/template
+    template = ~/.config/git/template
 
 [advice]
   addEmptyPathspec = false
@@ -47,10 +43,6 @@
 [pull]
     default = current
 
-[credential]
-	helper = osxkeychain
-
-
 [color "diff"]
     meta       = black bold
     frag       = magenta
@@ -63,4 +55,3 @@
     remote   = yellow
     upstream = green
     plain    = blue
-
