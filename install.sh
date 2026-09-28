@@ -11,6 +11,7 @@ ASSUME_YES=0
 NO_PACKAGES=0
 NO_TUI=0
 DOCTOR=0
+SETUP_EDITOR=0
 RESTORE_DIR=''
 PROFILE_CSV=''
 OS=''
@@ -34,6 +35,7 @@ Options:
   --no-tui               Use defaults/flags without the interactive chooser
   --yes                  Do not ask for confirmation
   --doctor               Report configuration and dependency health
+  --setup-editor         Synchronize pinned Neovim plugins after installation
   --restore DIRECTORY    Restore a backup created by this installer
   -h, --help             Show this help
 EOF
@@ -339,10 +341,25 @@ doctor() {
     warn 'fd/fdfind is missing'; failed=1
   fi
   for config in btop fastfetch gh git neovim tmux; do
-    if [[ -L "$HOME/.config/$config" ]]; then ok "config/$config linked"; else warn "config/$config is not linked"; failed=1; fi
+    if [[ -L "$HOME/.config/$config" && $(readlink "$HOME/.config/$config") == "$SCRIPT_DIR/config/$config" ]]; then
+      ok "config/$config linked"
+    else
+      warn "config/$config is not linked to this repository"; failed=1
+    fi
   done
   [[ -f $HOME/.zshrc ]] && grep -Fqx "$MARKER_START" "$HOME/.zshrc" && ok '.zshrc managed block present' || { warn '.zshrc managed block missing'; failed=1; }
   return "$failed"
+}
+
+setup_editor() {
+  (( SETUP_EDITOR )) || return 0
+  command -v nvim >/dev/null 2>&1 || die 'Neovim is required for --setup-editor.'
+  info 'Synchronizing pinned Neovim plugins'
+  if (( DRY_RUN )); then
+    say '  [dry-run] nvim --headless "+Lazy! sync" +qa'
+  else
+    NVIM_APPNAME=neovim nvim --headless '+Lazy! sync' +qa
+  fi
 }
 
 restore() {
@@ -369,6 +386,7 @@ show_restore_plan() {
   for relative in "${managed_paths[@]}"; do
     [[ -e $source/$relative || -L $source/$relative ]] && say "  restore: ~/$relative"
   done
+  return 0
 }
 
 confirm() {
@@ -392,6 +410,7 @@ parse_args() {
       --no-tui) NO_TUI=1; shift ;;
       --yes) ASSUME_YES=1; shift ;;
       --doctor) DOCTOR=1; shift ;;
+      --setup-editor) SETUP_EDITOR=1; shift ;;
       --restore) RESTORE_DIR=${2:?--restore needs a directory}; shift 2 ;;
       -h|--help) usage; exit 0 ;;
       *) die "Unknown option: $1" ;;
@@ -416,6 +435,7 @@ main() {
   confirm
   install_packages
   activate_configs
+  setup_editor
   if (( ! DRY_RUN )); then
     say
     ok 'Installed. Start a new shell with: exec zsh'

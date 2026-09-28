@@ -130,6 +130,9 @@ files under `~/.dotfiles-backups/`, and only manages its marked block in `.zshrc
 # verify or restore a recorded backup
 ./install.sh --doctor
 ./install.sh --restore ~/.dotfiles-backups/<timestamp>
+
+# fetch the Neovim plugins immediately instead of on first launch
+./install.sh --setup-editor
 ```
 
 Profiles are `core` (zsh, Git, search/navigation), `editor` (Neovim), `terminal`
@@ -137,6 +140,19 @@ Profiles are `core` (zsh, Git, search/navigation), `editor` (Neovim), `terminal`
 [Gum](https://github.com/charmbracelet/gum) is already installed, the profile
 picker and confirmation use its interactive UI; otherwise the installer falls
 back to a plain terminal prompt.
+
+### verification
+
+The repository includes an isolated-home smoke test for linking, repeat runs,
+preserving an existing `.zshrc`, and restoring a collision backup:
+
+```bash
+./tests/install-smoke.sh
+```
+
+Run it on a clean macOS host and a clean Debian/Ubuntu host before a release;
+then manually run `./install.sh`, `exec zsh`, `nvim`, and `tmux` for the
+profiles you intend to publish.
 
 > <sub>keep machine-specific bits in `shell/local.zsh` — already ignored, stays off the public record.</sub>
 
