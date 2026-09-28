@@ -108,11 +108,43 @@ choose_profiles() {
   if command -v gum >/dev/null 2>&1 && [[ -t 0 ]]; then
     mapfile -t PROFILES < <(printf '%s\n' core editor terminal writing | gum choose --no-limit --header 'Select profiles (space toggles, enter confirms)')
   elif [[ -t 0 ]]; then
-    say 'Profiles: core (shell/git/search), editor (Neovim), terminal (tmux/CLI), writing (Pandoc/TeX)'
-    read -r -p 'Install profiles [core,editor,terminal]: ' selected
-    selected=${selected:-core,editor,terminal}
-    PROFILE_CSV=$selected
-    parse_profiles
+    PROFILES=(core editor terminal)
+    local choice profile
+    while true; do
+      printf '\n\033[1;38;5;141m  Configure your setup\033[0m\n'
+      for profile in core editor terminal writing; do
+        if has_profile "$profile"; then
+          printf '  \033[38;5;78m[x]\033[0m %-8s' "$profile"
+        else
+          printf '  \033[38;5;245m[ ]\033[0m %-8s' "$profile"
+        fi
+        case "$profile" in
+          core) say ' shell, Git, fuzzy search, navigation' ;;
+          editor) say ' Neovim' ;;
+          terminal) say ' tmux and terminal tools' ;;
+          writing) say ' Pandoc and XeLaTeX' ;;
+        esac
+      done
+      read -r -p 'Toggle [c/e/t/w], [a]ll, or [enter] to continue: ' choice
+      case "$choice" in
+        '') break ;;
+        a|A) PROFILES=(core editor terminal writing) ;;
+        c|C) profile=core ;;
+        e|E) profile=editor ;;
+        t|T) profile=terminal ;;
+        w|W) profile=writing ;;
+        *) warn 'Choose c, e, t, w, a, or Enter.'; continue ;;
+      esac
+      [[ $choice == a || $choice == A ]] && continue
+      if has_profile "$profile"; then
+        local -a kept=()
+        local selected
+        for selected in "${PROFILES[@]}"; do [[ $selected != "$profile" ]] && kept+=("$selected"); done
+        PROFILES=("${kept[@]}")
+      else
+        PROFILES+=("$profile")
+      fi
+    done
   else
     PROFILES=(core editor terminal)
   fi
@@ -289,7 +321,7 @@ show_package_plan() {
     say "Package manager: $PACKAGE_MANAGER"
   fi
   say "Formulae/packages: ${PACKAGES[*]}"
-  ((${#CASKS[@]})) && say "Casks: ${CASKS[*]}"
+  if ((${#CASKS[@]})); then say "Casks: ${CASKS[*]}"; fi
 }
 
 doctor() {
